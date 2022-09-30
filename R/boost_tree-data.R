@@ -7,7 +7,7 @@
 # they are already in the parsnip model database. We'll exclude them from
 # coverage stats for this reason.
 
-# nocov
+# nocov start
 
 make_boost_tree_mboost <- function() {
   parsnip::set_model_engine("boost_tree", mode = "censored regression", eng = "mboost")
@@ -96,17 +96,13 @@ make_boost_tree_mboost <- function() {
     type = "survival",
     value = list(
       pre = NULL,
-      post = function(x, object) {
-        time <- object$spec$method$pred$survival$args$time
-        res <- floor_surv_mboost(x, time)
-        matrix_to_nested_tibbles_survival(res, time)
-      },
-      func = c(pkg = "mboost", fun = "survFit"),
-      args =
-        list(
-          object = quote(object$fit),
-          newdata = quote(new_data)
-        )
+      post = NULL,
+      func = c(pkg = "censored", fun = "survival_prob_mboost"),
+      args = list(
+        object = rlang::expr(object$fit),
+        new_data = rlang::expr(new_data),
+        time = rlang::expr(time)
+      )
     )
   )
 

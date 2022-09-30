@@ -15,14 +15,6 @@ test_that("model object", {
   expect_equal(f_fit$fit[-c(16, 21)], exp_f_fit[-20], ignore_formula_env = TRUE)
 })
 
-test_that("api errors", {
-  expect_snapshot(
-    error = TRUE,
-    proportional_hazards() %>% set_engine("lda")
-  )
-})
-
-
 # prediction: time --------------------------------------------------------
 
 test_that("time predictions without strata", {
@@ -144,9 +136,12 @@ test_that("time predictions with NA", {
 })
 
 
-# prediction: survival probabilities --------------------------------------
+# prediction: survival ----------------------------------------------------
 
 test_that("survival predictions without strata", {
+  # due to pec:
+  skip_if_not_installed("Matrix", minimum_version = "1.4.2")
+
   cox_spec <- proportional_hazards() %>% set_engine("survival")
   exp_f_fit <- coxph(Surv(time, status) ~ age + sex, data = lung, x = TRUE)
 

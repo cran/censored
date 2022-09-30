@@ -23,28 +23,59 @@ test_that("model object", {
   )
 })
 
+# prediction: time --------------------------------------------------------
+
+test_that("time predictions", {
+  cox_spec <- boost_tree() %>%
+    set_engine("mboost") %>%
+    set_mode("censored regression")
+  f_fit <- fit(cox_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
+
+  f_pred <- predict(f_fit, lung, type = "time")
+
+  expect_s3_class(f_pred, "tbl_df")
+  expect_true(all(names(f_pred) == ".pred_time"))
+  expect_equal(nrow(f_pred), nrow(lung))
+
+  # single observation
+  # skip until mboost::survFit() works with a single row for `newdata`
+  # fix submitted: https://github.com/boost-R/mboost/pull/118
+  # expect_error(f_pred_1 <- predict(f_fit, lung[1,], type = "time"), NA)
+  # expect_equal(nrow(f_pred_1), 1)
+})
+
+
+# prediction: survival ----------------------------------------------------
 
 test_that("survival predictions", {
   pred_time <- c(0, 100, 200, 10000)
 
-  lung2 <- lung[-14, ]
+  set.seed(403)
   exp_f_fit <- mboost::blackboost(Surv(time, status) ~ age + ph.ecog,
-                                  data = lung2,
+                                  data = lung,
                                   family = mboost::CoxPH())
   cox_spec <- boost_tree() %>%
     set_engine("mboost") %>%
     set_mode("censored regression")
-  f_fit <- fit(cox_spec, Surv(time, status) ~ age + ph.ecog, data = lung2)
+  set.seed(403)
+  f_fit <- fit(cox_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
 
-  expect_error(predict(f_fit, lung2, type = "survival"),
+  expect_error(predict(f_fit, lung, type = "survival"),
                "When using 'type' values of 'survival' or 'hazard' are given")
 
-  f_pred <- predict(f_fit, lung2, type = "survival", time = pred_time)
-  exp_f_pred <- mboost::survFit(exp_f_fit, lung2)
+  set.seed(403)
+  f_pred <- predict(f_fit, lung, type = "survival", time = pred_time)
+  set.seed(403)
+  exp_survFit <- mboost::survFit(exp_f_fit, lung)
+  exp_f_pred <- survival_curve_to_prob(
+    time = pred_time,
+    event_times = exp_survFit$time,
+    survival_prob = exp_survFit$surv
+  )
 
   expect_s3_class(f_pred, "tbl_df")
   expect_equal(names(f_pred), ".pred")
-  expect_equal(nrow(f_pred), nrow(lung2))
+  expect_equal(nrow(f_pred), nrow(lung))
   expect_true(
     all(purrr::map_lgl(f_pred$.pred, ~ all(dim(.x) == c(4, 2))))
   )
@@ -54,13 +85,101 @@ test_that("survival predictions", {
   )
   expect_equal(
     tidyr::unnest(f_pred, cols = c(.pred))$.time,
-    rep(pred_time, nrow(lung2))
+    rep(pred_time, nrow(lung))
   )
   expect_equal(
     tidyr::unnest(f_pred, cols = c(.pred))$.pred_survival,
-    as.numeric(t(floor_surv_mboost(exp_f_pred, pred_time)))
+    as.vector(exp_f_pred)
   )
 })
+
+
+test_that("survival_curve_to_prob() works", {
+  lung_pred <- tidyr::drop_na(lung)
+
+  # make a survfit object for comparisons with summary.survfit()
+  mod <- coxph(Surv(time, status) ~ ., data = lung)
+  surv_fit <- survfit(mod, newdata = lung_pred)
+
+  # general case
+  pred_time_general <- c(100, 200)
+  exp_prob <- summary(surv_fit, time = pred_time_general)$surv
+  prob <- survival_curve_to_prob(
+    time = pred_time_general,
+    event_times = surv_fit$time,
+    survival_prob = surv_fit$surv
+  )
+  expect_equal(prob, exp_prob)
+
+  # can handle unordered time
+  pred_time_unordered <- c(300, 100, 200)
+  exp_prob <- summary(surv_fit, time = pred_time_unordered)$surv
+  prob <- survival_curve_to_prob(
+    time = pred_time_unordered,
+    event_times = surv_fit$time,
+    survival_prob = surv_fit$surv
+  )
+  expect_equal(prob[c(2,3,1), ], exp_prob)
+
+  # can handle out of range time (before and after events)
+  pred_time_extend <- c(-2, 0, 3000)
+  exp_prob <- summary(surv_fit, time = pred_time_extend, extend = TRUE)$surv
+  prob <- survival_curve_to_prob(
+    time = pred_time_extend,
+    event_times = surv_fit$time,
+    survival_prob = surv_fit$surv
+  )
+  expect_equal(prob, exp_prob)
+
+  # can handle infinite time
+  pred_time_inf <- c(-Inf, 0, Inf, 1022, -Inf)
+  exp_prob <- summary(surv_fit, time = pred_time_inf)$surv
+  prob <- survival_curve_to_prob(
+    time = pred_time_inf,
+    event_times = surv_fit$time,
+    survival_prob = surv_fit$surv
+  )
+  expect_equal(nrow(prob), length(pred_time_inf))
+  expect_equal(prob[c(2, 4),], exp_prob)
+  expect_equal(
+    prob[c(1, 5),],
+    matrix(1, nrow = 2, ncol = nrow(lung_pred)),
+    ignore_attr = "dimnames"
+  )
+  expect_equal(
+    prob[3,] %>% unname(),
+    rep(0, nrow(lung_pred))
+  )
+})
+
+test_that("survival_prob_mboost() works", {
+  lung2 <- lung[-14, ]
+  mboost_object <- mboost::blackboost(
+    Surv(time, status) ~ age + ph.ecog,
+    data = lung2,
+    family = mboost::CoxPH()
+  )
+
+  # can handle missings
+  pred <- survival_prob_mboost(
+    mboost_object,
+    new_data = lung[14:15,],
+    time = c(0, 100, 200)
+  )
+  expect_equal(nrow(pred), 2)
+
+  # can handle single observation
+  # skip until mboost::survFit() works with a single row for `newdata`
+  # fix submitted: https://github.com/boost-R/mboost/pull/118
+  # pred <- survival_prob_mboost(
+  #   mboost_object,
+  #   new_data = lung[1,],
+  #   time = c(0, 100, 200)
+  # )
+  # expect_equal(nrow(pred), 1)
+})
+
+# prediction: linear_pred -------------------------------------------------
 
 test_that("linear_pred predictions", {
   lung2 <- lung[-14, ]
@@ -91,215 +210,3 @@ test_that("linear_pred predictions", {
 })
 
 
-test_that("time predictions", {
-  cox_spec <- boost_tree() %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-  f_fit <- fit(cox_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
-
-  f_pred <- predict(f_fit, lung, type = "time")
-
-  expect_s3_class(f_pred, "tbl_df")
-  expect_true(all(names(f_pred) == ".pred_time"))
-  expect_equal(nrow(f_pred), nrow(lung))
-
-  # single observation
-  # skip until mboost::survFit() works with a single row for `newdata`
-  # fix submitted: https://github.com/boost-R/mboost/pull/118
-  # expect_error(f_pred_1 <- predict(f_fit, lung[1,], type = "time"), NA)
-  # expect_equal(nrow(f_pred_1), 1)
-})
-
-# ------------------------------------------------------------------------------
-
-test_that("primary arguments", {
-
-  # mtry
-  mtry <- boost_tree(mtry = 5) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expect_equal(translate(mtry)$method$fit$args,
-               list(
-                 formula = rlang::expr(missing_arg()),
-                 data = rlang::expr(missing_arg()),
-                 weights = rlang::expr(missing_arg()),
-                 mtry = rlang::quo(5),
-                 family = rlang::expr(mboost::CoxPH())
-               )
-  )
-
-  mtry_v <- boost_tree(mtry = tune()) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expect_equal(translate(mtry_v)$method$fit$args,
-               list(
-                 formula = rlang::expr(missing_arg()),
-                 data = rlang::expr(missing_arg()),
-                 weights = rlang::expr(missing_arg()),
-                 mtry = rlang::new_quosure(hardhat::tune()),
-                 family = rlang::expr(mboost::CoxPH())
-               )
-  )
-
-  # trees
-  trees <- boost_tree(trees = 1000) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expect_equal(translate(trees)$method$fit$args,
-               list(
-                 formula = rlang::expr(missing_arg()),
-                 data = rlang::expr(missing_arg()),
-                 weights = rlang::expr(missing_arg()),
-                 mstop = rlang::quo(1000),
-                 family = rlang::expr(mboost::CoxPH())
-               )
-  )
-
-  trees_v <- boost_tree(trees = tune()) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expect_equal(translate(trees_v)$method$fit$args,
-               list(
-                 formula = rlang::expr(missing_arg()),
-                 data = rlang::expr(missing_arg()),
-                 weights = rlang::expr(missing_arg()),
-                 mstop = rlang::new_quosure(hardhat::tune()),
-                 family = rlang::expr(mboost::CoxPH())
-               )
-  )
-
-  # tree_depth
-  tree_depth <- boost_tree(tree_depth = 3) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expect_equal(translate(tree_depth)$method$fit$args,
-               list(
-                 formula = rlang::expr(missing_arg()),
-                 data = rlang::expr(missing_arg()),
-                 weights = rlang::expr(missing_arg()),
-                 maxdepth = rlang::quo(3),
-                 family = rlang::expr(mboost::CoxPH())
-               )
-  )
-
-  tree_depth_v <- boost_tree(tree_depth = tune()) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expect_equal(translate(tree_depth_v)$method$fit$args,
-               list(
-                 formula = rlang::expr(missing_arg()),
-                 data = rlang::expr(missing_arg()),
-                 weights = rlang::expr(missing_arg()),
-                 maxdepth = rlang::new_quosure(hardhat::tune()),
-                 family = rlang::expr(mboost::CoxPH())
-               )
-  )
-
-  # min_n
-  min_n <- boost_tree(min_n = 10) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expect_equal(translate(min_n)$method$fit$args,
-               list(
-                 formula = rlang::expr(missing_arg()),
-                 data = rlang::expr(missing_arg()),
-                 weights = rlang::expr(missing_arg()),
-                 minsplit = rlang::quo(10),
-                 family = rlang::expr(mboost::CoxPH())
-               )
-  )
-
-  min_n_v <- boost_tree(min_n = tune()) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expect_equal(translate(min_n_v)$method$fit$args,
-               list(
-                 formula = rlang::expr(missing_arg()),
-                 data = rlang::expr(missing_arg()),
-                 weights = rlang::expr(missing_arg()),
-                 minsplit = rlang::new_quosure(hardhat::tune()),
-                 family = rlang::expr(mboost::CoxPH())
-               )
-  )
-
-  # loss_reduction
-  loss_reduction <- boost_tree(loss_reduction = 0.2) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expect_equal(translate(loss_reduction)$method$fit$args,
-               list(
-                 formula = rlang::expr(missing_arg()),
-                 data = rlang::expr(missing_arg()),
-                 weights = rlang::expr(missing_arg()),
-                 mincriterion = rlang::quo(0.2),
-                 family = rlang::expr(mboost::CoxPH())
-               )
-  )
-
-  loss_reduction_v <- boost_tree(loss_reduction = tune()) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expect_equal(translate(loss_reduction_v)$method$fit$args,
-               list(
-                 formula = rlang::expr(missing_arg()),
-                 data = rlang::expr(missing_arg()),
-                 weights = rlang::expr(missing_arg()),
-                 mincriterion = rlang::new_quosure(hardhat::tune()),
-                 family = rlang::expr(mboost::CoxPH())
-               )
-  )
-
-})
-
-test_that("updating", {
-  expr1 <- boost_tree() %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-  expr1_exp <- boost_tree(tree_depth = 10) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expr2 <- boost_tree() %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-  expr2_exp <- boost_tree(trees = 10) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expr3 <- boost_tree() %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-  expr3_exp <- boost_tree(mtry = 10) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expr4 <- boost_tree() %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-  expr4_exp <- boost_tree(min_n = 10) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expr5 <- boost_tree() %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-  expr5_exp <- boost_tree(loss_reduction = 10) %>%
-    set_engine("mboost") %>%
-    set_mode("censored regression")
-
-  expect_equal(update(expr1, tree_depth = 10), expr1_exp)
-  expect_equal(update(expr2, trees = 10), expr2_exp)
-  expect_equal(update(expr3, mtry = 10), expr3_exp)
-  expect_equal(update(expr4, min_n = 10), expr4_exp)
-  expect_equal(update(expr5, loss_reduction = 10), expr5_exp)
-})
