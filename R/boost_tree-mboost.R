@@ -31,16 +31,18 @@
 #' @export
 #' @examples
 #' blackboost_train(Surv(time, status) ~ age + ph.ecog,
-#'   data = lung[-14, ], family = mboost::CoxPH())
+#'   data = lung[-14, ], family = mboost::CoxPH()
+#' )
 blackboost_train <-
   function(formula, data, family, weights = NULL,
            teststat = "quad", testtype = "Teststatistic",
            mincriterion = 0, minsplit = 10,
            minbucket = 4, maxdepth = 2, saveinfo = FALSE, ...) {
-
     other_args <- list(...)
-    protect_ct <- c("teststat", "testtype", "mincriterion", "minsplit",
-                            "minbucket", "maxdepth", "saveinfo")
+    protect_ct <- c(
+      "teststat", "testtype", "mincriterion", "minsplit",
+      "minbucket", "maxdepth", "saveinfo"
+    )
     protect_cb <- character()
     protect_fit <- c("formula", "data", "family", "weight")
 
@@ -49,7 +51,7 @@ blackboost_train <-
     fit_names <- names(formals(getFromNamespace("blackboost", "mboost")))
 
     other_args <- other_args[!(other_args %in%
-                                 c(protect_ct, protect_cb, protect_fit))]
+      c(protect_ct, protect_cb, protect_fit))]
 
     ct_args <- other_args[names(other_args) %in% ct_names]
     cb_args <- other_args[names(other_args) %in% cb_names]
@@ -102,32 +104,41 @@ predict_linear_pred._blackboost <- function(object,
 #' A wrapper for survival probabilities with mboost models
 #' @param x A model from `blackboost()`.
 #' @param new_data Data for prediction.
-#' @param time A vector of integers for prediction times.
+#' @param eval_time A vector of integers for prediction times.
+#' @param time Deprecated in favor of `eval_time`. A vector of integers for prediction times.
 #' @return A tibble with a list column of nested tibbles.
 #' @keywords internal
 #' @export
 #' @examples
 #' library(mboost)
 #' mod <- blackboost(Surv(time, status) ~ ., data = lung, family = CoxPH())
-#' survival_prob_mboost(mod, new_data = lung[1:3, ], time = 300)
-survival_prob_mboost <- function(object, new_data, time) {
+#' survival_prob_mboost(mod, new_data = lung[1:3, ], eval_time = 300)
+survival_prob_mboost <- function(object, new_data, eval_time, time = deprecated()) {
+  if (lifecycle::is_present(time)) {
+    lifecycle::deprecate_warn(
+      "0.2.0",
+      "survival_prob_mboost(time)",
+      "survival_prob_mboost(eval_time)"
+    )
+    eval_time <- time
+  }
 
   survival_curve <- mboost::survFit(object, newdata = new_data)
 
   survival_prob <- survival_curve_to_prob(
-    time,
+    eval_time,
     event_times = survival_curve$time,
     survival_prob = survival_curve$surv
   )
 
-  # survival_prob is length(time) x nrow(new_data) and
+  # survival_prob is length(eval_time) x nrow(new_data) and
   # `matrix_to_nested_tibbles_survival()` expects the transpose of that (and
   # then does another t() inside).
   # this version doesn't need to transpose the matrix at all
   n_obs <- ncol(survival_prob)
   ret <- tibble::tibble(
-    .row = rep(seq_len(n_obs), each = length(time)),
-    .time = rep(time, times = n_obs),
+    .row = rep(seq_len(n_obs), each = length(eval_time)),
+    .eval_time = rep(eval_time, times = n_obs),
     .pred_survival = as.vector(survival_prob)
   ) %>%
     tidyr::nest(.pred = c(-.row)) %>%
@@ -136,7 +147,7 @@ survival_prob_mboost <- function(object, new_data, time) {
   ret
 }
 
-survival_curve_to_prob <- function(time, event_times, survival_prob) {
+survival_curve_to_prob <- function(eval_time, event_times, survival_prob) {
   # add survival prob of 1 and 0 at the start and end of time, respectively
   if (event_times[1] != -Inf) {
     event_times <- c(-Inf, event_times)
@@ -148,7 +159,7 @@ survival_curve_to_prob <- function(time, event_times, survival_prob) {
   }
 
   # get survival probability (intervals are closed on the left, open on the right)
-  index <- findInterval(time, event_times)
+  index <- findInterval(eval_time, event_times)
 
   survival_prob[index, , drop = FALSE]
 }
@@ -163,10 +174,10 @@ survival_curve_to_prob <- function(time, event_times, survival_prob) {
 #' @examples
 #' library(mboost)
 #' boosted_tree <- blackboost(Surv(time, status) ~ age + ph.ecog,
-#'   data = lung[-14, ], family = CoxPH())
+#'   data = lung[-14, ], family = CoxPH()
+#' )
 #' survival_time_mboost(boosted_tree, new_data = lung[1:3, ])
 survival_time_mboost <- function(object, new_data) {
-
   y <- mboost::survFit(object, new_data)
 
   stacked_survfit <- stack_survfit(y, n = nrow(new_data))
@@ -177,9 +188,11 @@ survival_time_mboost <- function(object, new_data) {
 
   res <- dplyr::bind_rows(starting_rows, stacked_survfit) %>%
     dplyr::group_by(.row) %>%
-    dplyr::mutate(next_event_time = dplyr::lead(.time),
-                  time_interval = next_event_time - .time,
-                  sum_component = time_interval * .pred_survival) %>%
+    dplyr::mutate(
+      next_event_time = dplyr::lead(.time),
+      time_interval = next_event_time - .time,
+      sum_component = time_interval * .pred_survival
+    ) %>%
     dplyr::summarize(.pred_time = sum(sum_component, na.rm = TRUE)) %>%
     dplyr::ungroup() %>%
     dplyr::select(.pred_time)

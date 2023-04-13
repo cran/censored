@@ -5,7 +5,6 @@
 # nocov start
 
 .onLoad <- function(libname, pkgname) {
-
   make_bag_tree_rpart()
 
   make_boost_tree_mboost()
@@ -17,10 +16,11 @@
   make_proportional_hazards_glmnet()
 
   make_rand_forest_partykit()
+  make_rand_forest_aorsf()
 
   make_survival_reg_survival()
   make_survival_reg_flexsurv()
-
+  make_survival_reg_flexsurvspline()
 }
 
 # nocov end

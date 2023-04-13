@@ -2,14 +2,14 @@ library(testthat)
 
 test_that("model object", {
   set.seed(1234)
-  exp_f_fit <- flexsurv::flexsurvreg(
+  exp_f_fit <- flexsurv::flexsurvspline(
     Surv(time, status) ~ age + ph.ecog,
     data = lung,
-    dist = "weibull"
+    k = 1
   )
 
   mod_spec <- survival_reg() %>%
-    set_engine("flexsurv") %>%
+    set_engine("flexsurvspline", k = 1) %>%
     set_mode("censored regression")
   set.seed(1234)
   f_fit <- fit(mod_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
@@ -25,19 +25,14 @@ test_that("model object", {
   )
 })
 
-
 # prediction: time --------------------------------------------------------
 
-test_that("flexsurv time prediction", {
-  exp_fit <- flexsurv::flexsurvreg(
-    Surv(time, status) ~ age,
-    data = lung,
-    dist = "lognormal"
-  )
+test_that("time prediction", {
+  exp_fit <- flexsurv::flexsurvspline(Surv(time, status) ~ age, data = lung, k = 1)
   exp_pred <- predict(exp_fit, head(lung), type = "response")
 
-  f_fit <- survival_reg(dist = "lognormal") %>%
-    set_engine("flexsurv") %>%
+  f_fit <- survival_reg() %>%
+    set_engine("flexsurvspline", k = 1) %>%
     fit(Surv(time, status) ~ age, data = lung)
   f_pred <- predict(f_fit, head(lung), type = "time")
 
@@ -48,13 +43,27 @@ test_that("flexsurv time prediction", {
   expect_identical(nrow(f_pred_1), 1L)
 })
 
-
 # prediction: survival ----------------------------------------------------
 
 test_that("survival probability prediction", {
-  rms_surv <- readRDS(test_path("data", "rms_surv.rds"))
-  f_fit <- survival_reg(dist = "weibull") %>%
-    set_engine("flexsurv") %>%
+  exp_fit <- flexsurv::flexsurvspline(
+    Surv(time, status) ~ age + sex,
+    data = lung, k = 1
+  )
+  exp_pred <- predict(
+    exp_fit,
+    head(lung),
+    type = "survival",
+    times = c(0, 500, 1000)
+  ) %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(
+      .pred = list(dplyr::rename(.pred, .eval_time = .time))
+    ) %>%
+    dplyr::ungroup()
+
+  f_fit <- survival_reg() %>%
+    set_engine("flexsurvspline", k = 1) %>%
     fit(Surv(time, status) ~ age + sex, data = lung)
 
   expect_error(
@@ -87,12 +96,7 @@ test_that("survival probability prediction", {
     )
   )
 
-  # using rms for expected results
-  expect_equal(
-    f_pred$.pred[[1]]$.pred_survival,
-    rms_surv,
-    tolerance = 0.001
-  )
+  expect_equal(f_pred, exp_pred)
 
   # add confidence interval
   pred <- predict(
@@ -121,7 +125,7 @@ test_that("survival probability prediction", {
 })
 
 test_that("survival probabilities for single eval time point", {
-  f_fit <- survival_reg(engine = "flexsurv") %>%
+  f_fit <- survival_reg(engine = "flexsurvspline") %>%
     fit(Surv(time, status) ~ age + sex, data = lung)
 
   pred <- predict(f_fit, lung[1:3, ], type = "survival", eval_time = 100)
@@ -143,58 +147,42 @@ test_that("survival probabilities for single eval time point", {
 
 test_that("linear predictor", {
   f_fit <- survival_reg() %>%
-    set_engine("flexsurv") %>%
+    set_engine("flexsurvspline", k = 1) %>%
     fit(Surv(time, status) ~ age + sex, data = lung)
   f_pred <- predict(f_fit, lung[1:5, ], type = "linear_pred")
 
-  exp_fit <- flexsurv::flexsurvreg(
+  exp_fit <- flexsurv::flexsurvspline(
     Surv(time, status) ~ age + sex,
     data = lung,
-    dist = "weibull"
-  )
-  exp_pred <- predict(exp_fit, lung[1:5, ], type = "linear")
-
-  expect_equal(f_pred$.pred_linear_pred, log(exp_pred$.pred_link))
-  expect_s3_class(f_pred, "tbl_df")
-  expect_true(all(names(f_pred) == ".pred_linear_pred"))
-  expect_equal(nrow(f_pred), 5)
-
-
-  f_fit <- survival_reg(dist = "lnorm") %>%
-    set_engine("flexsurv") %>%
-    fit(Surv(time, status) ~ age + sex, data = lung)
-  f_pred <- predict(f_fit, lung[1:5, ], type = "linear_pred")
-
-  exp_fit <- flexsurv::flexsurvreg(
-    Surv(time, status) ~ age + sex,
-    data = lung,
-    dist = "lnorm"
+    k = 1
   )
   exp_pred <- predict(exp_fit, lung[1:5, ], type = "linear")
 
   expect_equal(f_pred$.pred_linear_pred, exp_pred$.pred_link)
+  expect_s3_class(f_pred, "tbl_df")
+  expect_true(all(names(f_pred) == ".pred_linear_pred"))
+  expect_equal(nrow(f_pred), 5)
 
   # single observation
   f_pred_1 <- predict(f_fit, lung[2,], type = "linear_pred")
   expect_identical(nrow(f_pred_1), 1L)
 })
 
-
 # prediction: quantile ----------------------------------------------------
 
 test_that("quantile predictions", {
   set.seed(1)
   fit_s <- survival_reg() %>%
-    set_engine("flexsurv") %>%
+    set_engine("flexsurvspline", k = 1) %>%
     set_mode("censored regression") %>%
     fit(Surv(stop, event) ~ rx + size + enum, data = bladder)
   pred <- predict(fit_s, new_data = bladder[1:3, ], type = "quantile")
 
   set.seed(1)
-  exp_fit <- flexsurv::flexsurvreg(
+  exp_fit <- flexsurv::flexsurvspline(
     Surv(stop, event) ~ rx + size + enum,
     data = bladder,
-    dist = "weibull"
+    k = 1
   )
   exp_pred <- summary(
     exp_fit,
@@ -224,9 +212,12 @@ test_that("quantile predictions", {
   )
 
   # add confidence interval
-  pred <- predict(fit_s,
-    new_data = bladder[1:3, ], type = "quantile",
-    interval = "confidence", level = 0.7
+  pred <- predict(
+    fit_s,
+    new_data = bladder[1:3, ],
+    type = "quantile",
+    interval = "confidence",
+    level = 0.7
   )
   expect_true(
     all(purrr::map_lgl(
@@ -248,9 +239,24 @@ test_that("quantile predictions", {
 # prediction: hazard ------------------------------------------------------
 
 test_that("hazard prediction", {
-  rms_haz <- readRDS(test_path("data", "rms_haz.rds"))
-  f_fit <- survival_reg(dist = "weibull") %>%
-    set_engine("flexsurv") %>%
+  exp_fit <- flexsurv::flexsurvspline(
+    Surv(time, status) ~ age + sex,
+    data = lung, k = 1
+  )
+  exp_pred <- predict(
+    exp_fit,
+    head(lung),
+    type = "hazard",
+    times = c(0, 500, 1000)
+  ) %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(
+      .pred = list(dplyr::rename(.pred, .eval_time = .time))
+    ) %>%
+    dplyr::ungroup()
+
+  f_fit <- survival_reg() %>%
+    set_engine("flexsurvspline", k = 1) %>%
     fit(Surv(time, status) ~ age + sex, data = lung)
 
   expect_error(
@@ -282,13 +288,7 @@ test_that("hazard prediction", {
       )
     )
   )
-
-  # using rms for expected results
-  expect_equal(
-    f_pred$.pred[[1]]$.pred_hazard,
-    rms_haz,
-    tolerance = 0.001
-  )
+  expect_equal(f_pred, exp_pred)
 
   # single observation
   f_pred_1 <- predict(f_fit, lung[2,], type = "hazard", eval_time = c(100, 200))
@@ -296,7 +296,7 @@ test_that("hazard prediction", {
 })
 
 test_that("hazard for single eval time point", {
-  f_fit <- survival_reg(engine = "flexsurv") %>%
+  f_fit <- survival_reg(engine = "flexsurvspline") %>%
     fit(Surv(time, status) ~ age + sex, data = lung)
 
   pred <- predict(f_fit, lung[1:3, ], type = "hazard", eval_time = 100)
@@ -314,6 +314,7 @@ test_that("hazard for single eval time point", {
   )
 })
 
+
 # fit via matrix interface ------------------------------------------------
 
 test_that("`fix_xy()` works", {
@@ -322,9 +323,11 @@ test_that("`fix_xy()` works", {
   lung_pred <- lung[1:5, ]
 
   spec <- survival_reg() %>%
-    set_engine("flexsurv") %>%
+    set_engine("flexsurvspline", k = 1) %>%
     set_mode("censored regression")
+  set.seed(1)
   f_fit <- fit(spec, Surv(time, status) ~ age + ph.ecog, data = lung)
+  set.seed(1)
   xy_fit <- fit_xy(spec, x = lung_x, y = lung_y)
 
   elements_to_ignore <- c(
@@ -386,4 +389,34 @@ test_that("`fix_xy()` works", {
     eval_time = c(100, 200)
   )
   expect_equal(f_pred_hazard, xy_pred_hazard)
+})
+
+# case weights ------------------------------------------------------------
+
+test_that("can handle case weights", {
+  # flexsurv engine can only take weights > 0
+  set.seed(1)
+  wts <- runif(nrow(lung))
+  wts <- importance_weights(wts)
+
+  expect_error(
+    {
+      wt_fit <- survival_reg() %>%
+        set_engine("flexsurvspline", k = 1) %>%
+        set_mode("censored regression") %>%
+        fit(Surv(time, status) ~ age + sex, data = lung, case_weights = wts) %>%
+        suppressWarnings()
+    },
+    regexp = NA
+  )
+
+  unwt_fit <-
+    survival_reg() %>%
+    set_engine("flexsurvspline") %>%
+    set_mode("censored regression") %>%
+    fit(Surv(time, status) ~ age + sex, data = lung) %>%
+    suppressWarnings()
+
+  expect_snapshot(wt_fit$fit$call)
+  expect_unequal(coef(unwt_fit$fit), coef(wt_fit$fit))
 })

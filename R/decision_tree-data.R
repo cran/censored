@@ -11,14 +11,18 @@
 
 make_decision_tree_rpart <- function() {
   parsnip::set_model_engine("decision_tree", mode = "censored regression", eng = "rpart")
-  parsnip::set_dependency("decision_tree",
-                          eng = "rpart",
-                          pkg = "pec",
-                          mode = "censored regression")
-  parsnip::set_dependency("decision_tree",
-                          eng = "rpart",
-                          pkg = "censored",
-                          mode = "censored regression")
+  parsnip::set_dependency(
+    "decision_tree",
+    eng = "rpart",
+    pkg = "pec",
+    mode = "censored regression"
+  )
+  parsnip::set_dependency(
+    "decision_tree",
+    eng = "rpart",
+    pkg = "censored",
+    mode = "censored regression"
+  )
 
   parsnip::set_fit(
     model = "decision_tree",
@@ -69,23 +73,24 @@ make_decision_tree_rpart <- function() {
     value = list(
       pre = NULL,
       post = function(x, object) {
-        time <- object$spec$method$pred$survival$args$time
-        matrix_to_nested_tibbles_survival(x, time)
+        eval_time <- object$spec$method$pred$survival$args$eval_time
+        if (!is.matrix(x)) {
+          x <- matrix(x, nrow = 1)
+        }
+        matrix_to_nested_tibbles_survival(x, eval_time)
       },
       func = c(pkg = "pec", fun = "predictSurvProb"),
       args =
         list(
           object = quote(object$fit),
           newdata = quote(new_data),
-          times = rlang::expr(time)
+          times = rlang::expr(eval_time)
         )
     )
   )
-
 }
 
 make_decision_tree_partykit <- function() {
-
   parsnip::set_model_engine("decision_tree", mode = "censored regression", eng = "partykit")
   parsnip::set_dependency("decision_tree", eng = "partykit", pkg = "partykit")
   parsnip::set_dependency("decision_tree", eng = "partykit", pkg = "censored")
@@ -163,14 +168,14 @@ make_decision_tree_partykit <- function() {
     value = list(
       pre = NULL,
       post = NULL,
-      func = c(pkg = "censored", fun = "survival_prob_ctree"),
+      func = c(pkg = "censored", fun = "survival_prob_partykit"),
       args = list(
-        object = quote(object$fit),
-        new_data = quote(new_data)
+        object = rlang::expr(object$fit),
+        new_data = rlang::expr(new_data),
+        eval_time = rlang::expr(eval_time)
       )
     )
   )
-
 }
 
 # nocov end

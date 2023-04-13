@@ -35,7 +35,8 @@ predict(fit_cox, lung[1:3, ], type = "time")
 fit_ag <- proportional_hazards() \%>\%
   set_engine("survival") \%>\%
   fit(Surv(tstart, tstop, status) ~ treat + inherit + age + strata(hos.cat),
-      data = cgd)
+    data = cgd
+  )
 predict(fit_ag, cgd[1:3, ], type = "time")
 
 }
@@ -43,21 +44,22 @@ predict(fit_ag, cgd[1:3, ], type = "time")
 Useful links:
 \itemize{
   \item \url{https://github.com/tidymodels/censored}
+  \item \url{https://censored.tidymodels.org}
   \item Report bugs at \url{https://github.com/tidymodels/censored/issues}
 }
 
 }
 \author{
-\strong{Maintainer}: Hannah Frick \email{hannah@rstudio.com} (\href{https://orcid.org/0000-0002-6049-5258}{ORCID})
+\strong{Maintainer}: Hannah Frick \email{hannah@posit.co} (\href{https://orcid.org/0000-0002-6049-5258}{ORCID})
 
 Authors:
 \itemize{
-  \item Emil Hvitfeldt \email{emilhhvitfeldt@gmail.com} (\href{https://orcid.org/0000-0002-0679-1945}{ORCID})
+  \item Emil Hvitfeldt \email{emil.hvitfeldt@posit.co} (\href{https://orcid.org/0000-0002-0679-1945}{ORCID})
 }
 
 Other contributors:
 \itemize{
-  \item RStudio [copyright holder, funder]
+  \item Posit Software, PBC [copyright holder, funder]
 }
 
 }

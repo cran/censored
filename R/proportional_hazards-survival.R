@@ -1,4 +1,3 @@
-
 # prediction --------------------------------------------------------------
 
 #' @export
@@ -15,7 +14,8 @@ predict_linear_pred._coxph <- function(object,
   res
 }
 
-cph_survival_pre <- function(new_data, object) {
+cph_survival_pre <- function(new_data, object, ..., call = caller_env()) {
+  check_dots_empty()
 
   # Check that the stratification variable is part of `new_data`.
   # If this information is missing, survival::survfit() does not error but
@@ -31,7 +31,10 @@ cph_survival_pre <- function(new_data, object) {
     strata <- sub(pattern = "\\)", replacement = "", x = strata)
 
     if (!all(strata %in% names(new_data))) {
-      rlang::abort("Please provide the strata variable(s) in `new_data`.")
+      rlang::abort(
+        "Please provide the strata variable(s) in `new_data`.",
+        call = call
+      )
     }
   }
 
@@ -50,7 +53,6 @@ cph_survival_pre <- function(new_data, object) {
 #' cox_mod <- coxph(Surv(time, status) ~ ., data = lung)
 #' survival_time_coxph(cox_mod, new_data = lung[1:3, ])
 survival_time_coxph <- function(object, new_data) {
-
   missings_in_new_data <- get_missings_coxph(object, new_data)
   if (!is.null(missings_in_new_data)) {
     n_total <- nrow(new_data)
@@ -87,8 +89,12 @@ get_missings_coxph <- function(object, new_data) {
   trms <- stats::terms(object)
   trms <- stats::delete.response(trms)
   xlevels <- object$xlevels
-  mod_frame <- stats::model.frame(trms, data = new_data, xlev = xlevels,
-                                  na.action = stats::na.exclude)
+  mod_frame <- stats::model.frame(
+    trms,
+    data = new_data,
+    xlev = xlevels,
+    na.action = stats::na.exclude
+  )
 
   attr(mod_frame, "na.action")
 }
@@ -100,7 +106,8 @@ get_missings_coxph <- function(object, new_data) {
 #' A wrapper for survival probabilities with coxph models
 #' @param x A model from `coxph()`.
 #' @param new_data Data for prediction
-#' @param time A vector of integers for prediction times.
+#' @param eval_time A vector of integers for prediction times.
+#' @param time Deprecated in favor of `eval_time`. A vector of integers for prediction times.
 #' @param output One of `"surv"`, `"conf"`, or `"haz"`.
 #' @param interval Add confidence interval for survival probability? Options
 #' are `"none"` or `"confidence"`.
@@ -111,58 +118,61 @@ get_missings_coxph <- function(object, new_data) {
 #' @export
 #' @examples
 #' cox_mod <- coxph(Surv(time, status) ~ ., data = lung)
-#' survival_prob_coxph(cox_mod, new_data = lung[1:3, ], time = 300)
+#' survival_prob_coxph(cox_mod, new_data = lung[1:3, ], eval_time = 300)
 survival_prob_coxph <- function(x,
                                 new_data,
-                                time,
+                                eval_time,
+                                time = deprecated(),
                                 output = "surv",
                                 interval = "none",
                                 conf.int = .95,
                                 ...) {
+  if (lifecycle::is_present(time)) {
+    lifecycle::deprecate_warn(
+      "0.2.0",
+      "survival_prob_coxph(time)",
+      "survival_prob_coxph(eval_time)"
+    )
+    eval_time <- time
+  }
+
   interval <- rlang::arg_match(interval, c("none", "confidence"))
   output <- rlang::arg_match(output, c("surv", "conf", "haz"))
   if (output == "surv" & interval == "confidence") {
     output <- "survconf"
   }
 
+  n_obs <- nrow(new_data)
   missings_in_new_data <- get_missings_coxph(x, new_data)
+
   if (!is.null(missings_in_new_data)) {
-    n_total <- nrow(new_data)
     n_missing <- length(missings_in_new_data)
-    all_missing <- n_missing == n_total
+    all_missing <- n_missing == n_obs
     if (all_missing) {
-      ret <- predict_survival_na(time, interval)
+      ret <- predict_survival_na(eval_time, interval)
       ret <- tibble(.pred = rep(list(ret), n_missing))
       return(ret)
     }
     new_data <- new_data[-missings_in_new_data, , drop = FALSE]
   }
 
-  y <- survival::survfit(x, newdata = new_data, conf.int = conf.int,
-                         na.action = na.exclude, ...)
+  surv_fit <- survival::survfit(
+    x,
+    newdata = new_data,
+    conf.int = conf.int,
+    na.action = na.exclude,
+    ...
+  )
 
-  if (has_strata(x$terms)) {
-    new_strata <- compute_strata(x, new_data) %>%
-      dplyr::pull(.strata)
-  } else {
-    new_strata <- NULL
-  }
-
-  stacked_survfit <- stack_survfit(y, nrow(new_data))
-  starting_rows <- stacked_survfit %>%
-    dplyr::distinct(.row) %>%
-    dplyr::bind_cols(prob_template)
-
-  res <- dplyr::bind_rows(starting_rows, stacked_survfit) %>%
-    interpolate_km_values(time, new_strata) %>%
+  res <- surv_fit %>%
+    survfit_summary_to_patched_tibble(
+      index_missing = missings_in_new_data,
+      eval_time = eval_time,
+      n_obs = n_obs
+    ) %>%
     keep_cols(output) %>%
     tidyr::nest(.pred = c(-.row)) %>%
     dplyr::select(-.row)
 
-  if (!is.null(missings_in_new_data)) {
-    res <- pad_survival_na(res, missings_in_new_data, time,
-                           interval, n_total)
-  }
   res
 }
-

@@ -11,14 +11,18 @@
 
 make_boost_tree_mboost <- function() {
   parsnip::set_model_engine("boost_tree", mode = "censored regression", eng = "mboost")
-  parsnip::set_dependency("boost_tree",
-                          eng = "mboost",
-                          pkg = "mboost",
-                          mode = "censored regression")
-  parsnip::set_dependency("boost_tree",
-                          eng = "mboost",
-                          pkg = "censored",
-                          mode = "censored regression")
+  parsnip::set_dependency(
+    "boost_tree",
+    eng = "mboost",
+    pkg = "mboost",
+    mode = "censored regression"
+  )
+  parsnip::set_dependency(
+    "boost_tree",
+    eng = "mboost",
+    pkg = "censored",
+    mode = "censored regression"
+  )
 
   parsnip::set_model_arg(
     model = "boost_tree",
@@ -101,7 +105,7 @@ make_boost_tree_mboost <- function() {
       args = list(
         object = rlang::expr(object$fit),
         new_data = rlang::expr(new_data),
-        time = rlang::expr(time)
+        eval_time = rlang::expr(eval_time)
       )
     )
   )
@@ -139,7 +143,6 @@ make_boost_tree_mboost <- function() {
         )
     )
   )
-
 }
 
 # nocov end

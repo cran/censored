@@ -10,10 +10,23 @@
 # nocov start
 
 make_proportional_hazards_survival <- function() {
-
-  parsnip::set_model_engine("proportional_hazards", mode = "censored regression", eng = "survival")
-  parsnip::set_dependency("proportional_hazards", eng = "survival", pkg = "survival", mode = "censored regression")
-  parsnip::set_dependency("proportional_hazards", eng = "survival", pkg = "censored", mode = "censored regression")
+  parsnip::set_model_engine(
+    "proportional_hazards",
+    mode = "censored regression",
+    eng = "survival"
+  )
+  parsnip::set_dependency(
+    "proportional_hazards",
+    eng = "survival",
+    pkg = "survival",
+    mode = "censored regression"
+  )
+  parsnip::set_dependency(
+    "proportional_hazards",
+    eng = "survival",
+    pkg = "censored",
+    mode = "censored regression"
+  )
 
   parsnip::set_fit(
     model = "proportional_hazards",
@@ -69,7 +82,7 @@ make_proportional_hazards_survival <- function() {
         list(
           x = quote(object$fit),
           new_data = quote(new_data),
-          time = rlang::expr(time),
+          eval_time = rlang::expr(eval_time),
           output = "surv",
           interval = expr(interval),
           conf.int = expr(level)
@@ -100,16 +113,23 @@ make_proportional_hazards_survival <- function() {
 }
 
 make_proportional_hazards_glmnet <- function() {
-
-  parsnip::set_model_engine("proportional_hazards", mode = "censored regression", eng = "glmnet")
-  parsnip::set_dependency("proportional_hazards",
-                          eng = "glmnet",
-                          pkg =  "glmnet",
-                          mode = "censored regression")
-  parsnip::set_dependency("proportional_hazards",
-                          eng = "glmnet",
-                          pkg = "censored",
-                          mode = "censored regression")
+  parsnip::set_model_engine(
+    "proportional_hazards",
+    mode = "censored regression",
+    eng = "glmnet"
+  )
+  parsnip::set_dependency(
+    "proportional_hazards",
+    eng = "glmnet",
+    pkg = "glmnet",
+    mode = "censored regression"
+  )
+  parsnip::set_dependency(
+    "proportional_hazards",
+    eng = "glmnet",
+    pkg = "censored",
+    mode = "censored regression"
+  )
 
   parsnip::set_fit(
     model = "proportional_hazards",
@@ -159,12 +179,12 @@ make_proportional_hazards_glmnet <- function() {
     mode = "censored regression",
     type = "linear_pred",
     value = list(
-      pre = coxnet_predict_pre,
+      pre = coxnet_prepare_x,
       post = parsnip::.organize_glmnet_pred,
       func = c(fun = "predict"),
       args =
         list(
-          object = expr(object$fit),
+          object = expr(object$fit$fit),
           newx = expr(new_data),
           type = "link",
           s = expr(object$spec$args$penalty)
@@ -185,7 +205,7 @@ make_proportional_hazards_glmnet <- function() {
         list(
           object = expr(object),
           new_data = expr(new_data),
-          time = expr(time),
+          eval_time = expr(eval_time),
           penalty = expr(object$spec$args$penalty)
         )
     )
@@ -215,17 +235,16 @@ make_proportional_hazards_glmnet <- function() {
     mode = "censored regression",
     type = "raw",
     value = list(
-      pre = coxnet_predict_pre,
+      pre = coxnet_prepare_x,
       post = NULL,
       func = c(fun = "predict"),
       args =
-        list(object = expr(object$fit),
-             newx = expr(new_data)
+        list(
+          object = expr(object$fit$fit),
+          newx = expr(new_data)
         )
     )
   )
-
 }
-
 
 # nocov end
