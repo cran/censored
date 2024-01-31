@@ -1,6 +1,8 @@
 library(testthat)
 
 test_that("model object", {
+  skip_if_not_installed("ipred")
+
   set.seed(1234)
   exp_f_fit <- ipred::bagging(Surv(time, status) ~ age + ph.ecog, data = lung)
 
@@ -16,10 +18,35 @@ test_that("model object", {
   expect_equal(f_fit$fit[-6], exp_f_fit[-6], ignore_formula_env = TRUE)
 })
 
+test_that("main args work without set_model_arg()", {
+  skip_if_not_installed("ipred")
+
+  set.seed(1234)
+  exp_f_fit <- ipred::bagging(
+    Surv(time, status) ~ age + ph.ecog,
+    data = lung,
+    # already part of translate?
+    maxdepth = 20,
+    minsplit = 10,
+    cp = 0.5
+  )
+
+  # formula method
+  mod_spec <- bag_tree(tree_depth = 20, min_n = 10, cost_complexity = 0.5) %>%
+    set_mode("censored regression") %>%
+    set_engine("rpart")
+  set.seed(1234)
+  f_fit <- fit(mod_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
+
+  # Removing `call` element from both
+  expect_equal(f_fit$fit[-6], exp_f_fit[-6], ignore_formula_env = TRUE)
+})
 
 # prediction: time --------------------------------------------------------
 
 test_that("time predictions", {
+  skip_if_not_installed("ipred")
+
   set.seed(1234)
   exp_f_fit <- ipred::bagging(Surv(time, status) ~ age + ph.ecog, data = lung)
   exp_f_pred <- predict(exp_f_fit, lung)
@@ -43,6 +70,8 @@ test_that("time predictions", {
 })
 
 test_that("time predictions without surrogate splits for NA", {
+  skip_if_not_installed("ipred")
+
   mod_spec <- bag_tree(engine = "rpart") %>% set_mode("censored regression")
   f_fit <- fit(mod_spec, Surv(time, status) ~ ph.ecog, data = lung)
 
@@ -57,9 +86,19 @@ test_that("time predictions without surrogate splits for NA", {
   expect_equal(which(is.na(f_pred$.pred_time)), 2)
 })
 
+test_that("survival_time_survbagg() throws an informative error with an engine object", {
+  skip_if_not_installed("ipred")
+  mod <- ipred::bagging(Surv(time, status) ~ age + ph.ecog, data = lung)
+  expect_snapshot(error = TRUE, {
+    survival_time_survbagg(mod)
+  })
+})
+
 # prediction: survival ----------------------------------------------------
 
 test_that("survival predictions", {
+  skip_if_not_installed("ipred")
+
   set.seed(1234)
   exp_f_fit <- ipred::bagging(Surv(time, status) ~ age + ph.ecog, data = lung)
 
@@ -110,16 +149,20 @@ test_that("survival predictions", {
 })
 
 test_that("survival_prob_survbagg() works", {
+  skip_if_not_installed("ipred")
+
   set.seed(1234)
   # use only ph.ecog to force missings by avoiding surrogate splits
-  mod <- ipred::bagging(Surv(time, status) ~ ph.ecog, data = lung)
-
+  mod <-  bag_tree(engine = "rpart") %>%
+    set_mode("censored regression") %>%
+    fit(Surv(time, status) ~ ph.ecog, data = lung)
+  engine_mod <- extract_fit_engine(mod)
   # time: combination of order, out-of-range, infinite
   pred_time <- c(-Inf, 0, 100, Inf, 1022, 3000)
 
   # multiple observations (with 1 missing)
   lung_pred <- lung[13:15, ]
-  surv_fit <- predict(mod, newdata = lung_pred[c(1, 3), ])
+  surv_fit <- predict(engine_mod, newdata = lung_pred[c(1, 3), ])
   surv_fit_summary <- purrr::map(
     surv_fit,
     summary,
@@ -153,7 +196,7 @@ test_that("survival_prob_survbagg() works", {
 
   # single observation
   lung_pred <- lung[13, ]
-  surv_fit <- predict(mod, newdata = lung_pred)
+  surv_fit <- predict(engine_mod, newdata = lung_pred)
   surv_fit_summary <- purrr::map(
     surv_fit,
     summary,
@@ -184,6 +227,8 @@ test_that("survival_prob_survbagg() works", {
 })
 
 test_that("survival predictions without surrogate splits for NA", {
+  skip_if_not_installed("ipred")
+
   mod_spec <- bag_tree(engine = "rpart") %>% set_mode("censored regression")
   f_fit <- fit(mod_spec, Surv(time, status) ~ ph.ecog, data = lung)
 
@@ -205,10 +250,27 @@ test_that("survival predictions without surrogate splits for NA", {
   expect_true(!any(is.na(f_pred$.pred[[3]]$.pred_survival)))
 })
 
+test_that("can predict for out-of-domain timepoints", {
+  skip_if_not_installed("ipred")
+
+  eval_time_obs_max_and_ood <- c(1022, 2000)
+  obs_without_NA <- lung[2,]
+
+  mod <- bag_tree() %>%
+    set_mode("censored regression") %>%
+    set_engine("rpart") %>%
+    fit(Surv(time, status) ~ ., data = lung)
+
+  expect_no_error(
+    preds <- predict(mod, obs_without_NA, type = "survival", eval_time = eval_time_obs_max_and_ood)
+  )
+})
 
 # fit via matrix interface ------------------------------------------------
 
 test_that("`fix_xy()` works", {
+  skip_if_not_installed("ipred")
+  
   lung_x <- as.matrix(lung[, c("age", "ph.ecog")])
   lung_y <- Surv(lung$time, lung$status)
   lung_pred <- lung[1:5, ]

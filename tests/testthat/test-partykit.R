@@ -1,7 +1,13 @@
 test_that("survival_prob_partykit() works for ctree", {
+  skip_if_not_installed("partykit")
+  skip_if_not_installed("coin")
+
   set.seed(1234)
   # use only ph.ecog to rule out surrogate splits
-  mod <- partykit::ctree(Surv(time, status) ~ ph.ecog, data = lung)
+  mod <- decision_tree() %>%
+    set_mode("censored regression") %>%
+    set_engine("partykit") %>%
+    fit(Surv(time, status) ~ ph.ecog, data = lung)
 
   # time: combination of order, out-of-range, infinite
   pred_time <- c(-Inf, 0, 100, Inf, 1022, 3000)
@@ -9,7 +15,7 @@ test_that("survival_prob_partykit() works for ctree", {
   # multiple observations
   # (with 1 missing but partykit takes care of that)
   lung_pred <- lung[13:15, ]
-  surv_fit <- predict(mod, newdata = lung_pred, type = "prob")
+  surv_fit <- predict(mod$fit, newdata = lung_pred, type = "prob")
   surv_fit_summary <- purrr::map(
     surv_fit,
     summary,
@@ -37,7 +43,7 @@ test_that("survival_prob_partykit() works for ctree", {
 
   # single observation
   lung_pred <- lung[13, ]
-  surv_fit <- predict(mod, newdata = lung_pred, type = "prob")
+  surv_fit <- predict(mod$fit, newdata = lung_pred, type = "prob")
   surv_fit_summary <- purrr::map(
     surv_fit,
     summary,
@@ -69,10 +75,16 @@ test_that("survival_prob_partykit() works for ctree", {
 })
 
 test_that("survival_prob_partykit() works for cforest", {
+  skip_if_not_installed("partykit")
+  skip_if_not_installed("coin")
+  
   # partykit::cforest takes care of missing values via some form of randomness
   # hence set the seed before predicting on data with missings
 
-  mod <- partykit::cforest(Surv(time, status) ~ age + ph.ecog, data = lung)
+  mod <- rand_forest() %>%
+    set_mode("censored regression") %>%
+    set_engine("partykit") %>%
+    fit(Surv(time, status) ~ age + ph.ecog, data = lung)
 
   # time: combination of order, out-of-range, infinite
   pred_time <- c(-Inf, 0, 100, Inf, 1022, 3000)
@@ -80,7 +92,7 @@ test_that("survival_prob_partykit() works for cforest", {
   # multiple observations (with 1 missing)
   lung_pred <- lung[13:15, ]
   set.seed(1234)
-  surv_fit <- predict(mod, newdata = lung_pred, type = "prob")
+  surv_fit <- predict(mod$fit, newdata = lung_pred, type = "prob")
   surv_fit_summary <- purrr::map(
     surv_fit,
     summary,
@@ -110,7 +122,7 @@ test_that("survival_prob_partykit() works for cforest", {
   # single observation
   lung_pred <- lung[13, ]
   set.seed(1234)
-  surv_fit <- predict(mod, newdata = lung_pred, type = "prob")
+  surv_fit <- predict(mod$fit, newdata = lung_pred, type = "prob")
   surv_fit_summary <- purrr::map(
     surv_fit,
     summary,

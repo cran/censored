@@ -63,7 +63,7 @@ make_proportional_hazards_survival <- function() {
       func = c(pkg = "censored", fun = "survival_time_coxph"),
       args =
         list(
-          object = quote(object$fit),
+          object = quote(object),
           new_data = quote(new_data)
         )
     )
@@ -80,7 +80,7 @@ make_proportional_hazards_survival <- function() {
       func = c(pkg = "censored", fun = "survival_prob_coxph"),
       args =
         list(
-          x = quote(object$fit),
+          object = quote(object),
           new_data = quote(new_data),
           eval_time = rlang::expr(eval_time),
           output = "surv",
@@ -151,7 +151,7 @@ make_proportional_hazards_glmnet <- function() {
       predictor_indicators = "traditional",
       compute_intercept = TRUE,
       remove_intercept = TRUE,
-      allow_sparse_x = TRUE
+      allow_sparse_x = FALSE
     )
   )
 
@@ -184,7 +184,7 @@ make_proportional_hazards_glmnet <- function() {
       func = c(fun = "predict"),
       args =
         list(
-          object = expr(object$fit$fit),
+          object = expr(object$fit),
           newx = expr(new_data),
           type = "link",
           s = expr(object$spec$args$penalty)
@@ -240,7 +240,7 @@ make_proportional_hazards_glmnet <- function() {
       func = c(fun = "predict"),
       args =
         list(
-          object = expr(object$fit$fit),
+          object = expr(object$fit),
           newx = expr(new_data)
         )
     )

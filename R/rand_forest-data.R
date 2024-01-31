@@ -110,7 +110,7 @@ make_rand_forest_partykit <- function() {
       post = NULL,
       func = c(pkg = "censored", fun = "survival_prob_partykit"),
       args = list(
-        object = rlang::expr(object$fit),
+        object = rlang::expr(object),
         new_data = rlang::expr(new_data),
         eval_time = rlang::expr(eval_time)
       )
@@ -190,13 +190,33 @@ make_rand_forest_aorsf <- function() {
     model = "rand_forest",
     eng = "aorsf",
     mode = "censored regression",
+    type = "time",
+    value = list(
+      pre = NULL,
+      post = function(x, object) {
+        as.vector(x)
+      },
+      func = c(fun = "predict"),
+      args = list(
+        object = rlang::expr(object$fit),
+        new_data = rlang::expr(new_data),
+        pred_type = "time",
+        na_action = "pass"
+      )
+    )
+  )
+
+  parsnip::set_pred(
+    model = "rand_forest",
+    eng = "aorsf",
+    mode = "censored regression",
     type = "survival",
     value = list(
       pre = NULL,
       post = NULL,
       func = c(pkg = "censored", fun = "survival_prob_orsf"),
       args = list(
-        object = rlang::expr(object$fit),
+        object = rlang::expr(object),
         new_data = rlang::expr(new_data),
         eval_time = rlang::expr(eval_time)
       )

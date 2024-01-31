@@ -10,6 +10,7 @@
 coverage](https://codecov.io/gh/tidymodels/censored/branch/main/graph/badge.svg)](https://app.codecov.io/gh/tidymodels/censored?branch=main)
 [![Lifecycle:
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html)
+[![R-CMD-check-hard](https://github.com/tidymodels/censored/actions/workflows/R-CMD-check-hard.yaml/badge.svg)](https://github.com/tidymodels/censored/actions/workflows/R-CMD-check-hard.yaml)
 <!-- badges: end -->
 
 `censored` is a [parsnip](https://parsnip.tidymodels.org) extension
@@ -52,7 +53,7 @@ with `type = "quantile"`, and the hazard with `type = "hazard"`.
 | proportional_hazards | survival       | ✔    | ✔        | ✔           | ✖   | ✖        | ✖      |
 | proportional_hazards | glmnet         | ✔    | ✔        | ✔           | ✔   | ✖        | ✖      |
 | rand_forest          | partykit       | ✔    | ✔        | ✖           | ✖   | ✖        | ✖      |
-| rand_forest          | aorsf          | ✖    | ✔        | ✖           | ✖   | ✖        | ✖      |
+| rand_forest          | aorsf          | ✔    | ✔        | ✖           | ✖   | ✖        | ✖      |
 | survival_reg         | survival       | ✔    | ✔        | ✔           | ✖   | ✔        | ✔      |
 | survival_reg         | flexsurv       | ✔    | ✔        | ✔           | ✖   | ✔        | ✔      |
 | survival_reg         | flexsurvspline | ✔    | ✔        | ✔           | ✖   | ✔        | ✔      |

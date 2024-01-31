@@ -6,36 +6,38 @@
 #' \pkg{mboost} package that fits tree-based models
 #'  where all of the model arguments are in the main function.
 #'
-#' @param x A data frame or matrix of predictors.
-#' @param y A factor vector with 2 or more levels
-#' @param teststat a character specifying the type of the test statistic to be
+#' @param formula A symbolic description of the model to be fitted.
+#' @param data A data frame containing the variables in the model.
+#' @param family A [mboost::Family()] object.
+#' @param weights An optional vector of weights to be used in the fitting process.
+#' @param teststat A character specifying the type of the test statistic to be
 #'   applied for variable selection.
-#' @param testtype a character specifying how to compute the distribution of
+#' @param testtype A character specifying how to compute the distribution of
 #'   the test statistic. The first three options refer to p-values as criterion,
-#'   Teststatistic uses the raw statistic as criterion. Bonferroni and
-#'   Univariate relate to p-values from the asymptotic distribution (adjusted or
+#'   `"Teststatistic"` uses the raw statistic as criterion. `"Bonferroni"` and
+#'   `"Univariate"` relate to p-values from the asymptotic distribution (adjusted or
 #'   unadjusted). Bonferroni-adjusted Monte-Carlo p-values are computed when
-#'   both Bonferroni and MonteCarlo are given.
-#' @param mincriterion the value of the test statistic or 1 - p-value that must
+#'   both `"Bonferroni"` and `"MonteCarlo"` are given.
+#' @param mincriterion The value of the test statistic or 1 - p-value that must
 #'   be exceeded in order to implement a split.
-#' @param minsplit the minimum sum of weights in a node in order to be
+#' @param minsplit The minimum sum of weights in a node in order to be
 #'   considered for splitting.
-#' @param minbucket the minimum sum of weights in a terminal node.
-#' @param maxdepth maximum depth of the tree. The default maxdepth = Inf means
+#' @param minbucket The minimum sum of weights in a terminal node.
+#' @param maxdepth The maximum depth of the tree. The default `maxdepth = Inf` means
 #'   that no restrictions are applied to tree sizes.
-#' @param saveinfo logical. Store information about variable selection procedure
+#' @param saveinfo Logical. Store information about variable selection procedure
 #'   in info slot of each partynode.
 #' @param ... Other arguments to pass.
 #' @return A fitted blackboost model.
 #' @keywords internal
 #' @export
-#' @examples
+#' @examplesIf rlang::is_installed("mboost")
 #' blackboost_train(Surv(time, status) ~ age + ph.ecog,
 #'   data = lung[-14, ], family = mboost::CoxPH()
 #' )
 blackboost_train <-
   function(formula, data, family, weights = NULL,
-           teststat = "quad", testtype = "Teststatistic",
+           teststat = "quadratic", testtype = "Teststatistic",
            mincriterion = 0, minsplit = 10,
            minbucket = 4, maxdepth = 2, saveinfo = FALSE, ...) {
     other_args <- list(...)
@@ -102,18 +104,24 @@ predict_linear_pred._blackboost <- function(object,
 }
 
 #' A wrapper for survival probabilities with mboost models
-#' @param x A model from `blackboost()`.
+#' @param object A parsnip `model_fit` object resulting from [boost_tree() with engine = "mboost"][parsnip::details_boost_tree_mboost].
 #' @param new_data Data for prediction.
 #' @param eval_time A vector of integers for prediction times.
 #' @param time Deprecated in favor of `eval_time`. A vector of integers for prediction times.
 #' @return A tibble with a list column of nested tibbles.
 #' @keywords internal
 #' @export
-#' @examples
-#' library(mboost)
-#' mod <- blackboost(Surv(time, status) ~ ., data = lung, family = CoxPH())
+#' @examplesIf rlang::is_installed("mboost")
+#' mod <- boost_tree() %>%
+#'   set_engine("mboost") %>%
+#'   set_mode("censored regression") %>%
+#'   fit(Surv(time, status) ~ ., data = lung)
 #' survival_prob_mboost(mod, new_data = lung[1:3, ], eval_time = 300)
 survival_prob_mboost <- function(object, new_data, eval_time, time = deprecated()) {
+  if (inherits(object, "mboost")) {
+    cli::cli_abort("{.arg object} needs to be a parsnip {.cls model_fit} object, not a {.cls mboost} object.")
+  }
+
   if (lifecycle::is_present(time)) {
     lifecycle::deprecate_warn(
       "0.2.0",
@@ -123,7 +131,7 @@ survival_prob_mboost <- function(object, new_data, eval_time, time = deprecated(
     eval_time <- time
   }
 
-  survival_curve <- mboost::survFit(object, newdata = new_data)
+  survival_curve <- mboost::survFit(object$fit, newdata = new_data)
 
   survival_prob <- survival_curve_to_prob(
     eval_time,
@@ -131,10 +139,7 @@ survival_prob_mboost <- function(object, new_data, eval_time, time = deprecated(
     survival_prob = survival_curve$surv
   )
 
-  # survival_prob is length(eval_time) x nrow(new_data) and
-  # `matrix_to_nested_tibbles_survival()` expects the transpose of that (and
-  # then does another t() inside).
-  # this version doesn't need to transpose the matrix at all
+  # survival_prob is length(eval_time) x nrow(new_data)
   n_obs <- ncol(survival_prob)
   ret <- tibble::tibble(
     .row = rep(seq_len(n_obs), each = length(eval_time)),
@@ -166,19 +171,23 @@ survival_curve_to_prob <- function(eval_time, event_times, survival_prob) {
 
 
 #' A wrapper for mean survival times with `mboost` models
-#' @param object A model from `blackboost()`.
+#' @param object A parsnip `model_fit` object resulting from [boost_tree() with engine = "mboost"][parsnip::details_boost_tree_mboost].
 #' @param new_data Data for prediction
 #' @return A tibble.
 #' @keywords internal
 #' @export
-#' @examples
-#' library(mboost)
-#' boosted_tree <- blackboost(Surv(time, status) ~ age + ph.ecog,
-#'   data = lung[-14, ], family = CoxPH()
-#' )
+#' @examplesIf rlang::is_installed("mboost")
+#' boosted_tree <- boost_tree() %>%
+#'   set_engine("mboost") %>%
+#'   set_mode("censored regression") %>%
+#'   fit(Surv(time, status) ~ age + ph.ecog, data = lung[-14, ])
 #' survival_time_mboost(boosted_tree, new_data = lung[1:3, ])
 survival_time_mboost <- function(object, new_data) {
-  y <- mboost::survFit(object, new_data)
+  if (inherits(object, "mboost")) {
+    cli::cli_abort("{.arg object} needs to be a parsnip {.cls model_fit} object, not a {.cls mboost} object.")
+  }
+
+  y <- mboost::survFit(object$fit, new_data)
 
   stacked_survfit <- stack_survfit(y, n = nrow(new_data))
 

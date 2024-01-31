@@ -7,7 +7,7 @@
 survival_time_survbagg(object, new_data)
 }
 \arguments{
-\item{object}{A model from \code{ipred::bagging()}.}
+\item{object}{A parsnip \code{model_fit} object resulting from \link[parsnip:details_bag_tree_rpart]{bag_tree() with engine = "rpart"}.}
 
 \item{new_data}{Data for prediction}
 }
@@ -18,8 +18,12 @@ A vector.
 A wrapper for survival times with \code{survbagg} models
 }
 \examples{
-library(ipred)
-bagged_tree <- bagging(Surv(time, status) ~ age + ph.ecog, data = lung)
+\dontshow{if (rlang::is_installed("ipred")) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+bagged_tree <- bag_tree() \%>\%
+  set_engine("rpart") \%>\%
+  set_mode("censored regression") \%>\%
+  fit(Surv(time, status) ~ age + ph.ecog, data = lung)
 survival_time_survbagg(bagged_tree, lung[1:3, ])
+\dontshow{\}) # examplesIf}
 }
 \keyword{internal}

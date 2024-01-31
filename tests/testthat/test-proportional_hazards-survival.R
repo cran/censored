@@ -68,13 +68,6 @@ test_that("time predictions with strata", {
   # single observation
   expect_error(f_pred_1 <- predict(f_fit, lung[1, ], type = "time"), NA)
   expect_equal(nrow(f_pred_1), 1)
-
-  # prediction without strata info should fail
-  new_data_0 <- data.frame(age = c(50, 60), sex = 1)
-  expect_error(
-    predict(f_fit, new_data = new_data_0, type = "time"),
-    "provide the strata"
-  )
 })
 
 test_that("time predictions with NA", {
@@ -150,11 +143,20 @@ test_that("prediction from stratified models require strata variables in new_dat
   expect_snapshot(error = TRUE, {
     predict(f_fit, new_data = dplyr::select(lung, -inst))
   })
+
+  f_fit <- proportional_hazards() %>%
+    set_engine("survival") %>%
+      fit(Surv(time, status) ~ age + sex + strata(inst) + strata(ph.ecog), data = lung)
+
+  expect_snapshot(error = TRUE, {
+    predict(f_fit, new_data = dplyr::select(lung, -inst, -ph.ecog))
+  })
 })
 
 # prediction: survival ----------------------------------------------------
 
 test_that("survival predictions without strata", {
+  skip_if_not_installed("pec")
   # due to pec:
   skip_if_not_installed("Matrix", minimum_version = "1.4.2")
 
@@ -264,8 +266,7 @@ test_that("survival predictions with strata", {
   # prediction without strata info should fail
   new_data_s <- new_data_3 %>% dplyr::select(-enum)
   expect_error(
-    predict(f_fit, new_data = new_data_s, type = "survival", eval_time = 20),
-    "provide the strata"
+    predict(f_fit, new_data = new_data_s, type = "survival", eval_time = 20)
   )
 })
 
@@ -338,14 +339,15 @@ test_that("survival prediction with NA", {
 })
 
 test_that("survival_prob_coxph() works", {
-  mod <- coxph(Surv(time, status) ~ age + ph.ecog, data = lung)
+  mod <- proportional_hazards() %>% 
+    fit(Surv(time, status) ~ age + ph.ecog, data = lung)
 
   # time: combination of order, out-of-range, infinite
   pred_time <- c(-Inf, 0, 100, Inf, 1022, 3000)
 
   # multiple observations (with 1 missing)
   lung_pred <- lung[13:15, ]
-  surv_fit <- survfit(mod, newdata = lung_pred)
+  surv_fit <- survfit(mod$fit, newdata = lung_pred)
   surv_fit_summary <- summary(surv_fit, times = pred_time, extend = TRUE)
 
   prob <- survival_prob_coxph(mod, new_data = lung_pred, eval_time = pred_time)
@@ -373,7 +375,7 @@ test_that("survival_prob_coxph() works", {
 
   # single observation
   lung_pred <- lung[13, ]
-  surv_fit <- survfit(mod, newdata = lung_pred)
+  surv_fit <- survfit(mod$fit, newdata = lung_pred)
   surv_fit_summary <- summary(surv_fit, times = pred_time, extend = TRUE)
 
   prob <- survival_prob_coxph(mod, new_data = lung_pred, eval_time = pred_time)
@@ -401,14 +403,15 @@ test_that("survival_prob_coxph() works", {
 })
 
 test_that("survival_prob_coxph() works with confidence intervals", {
-  mod <- coxph(Surv(time, status) ~ age + ph.ecog, data = lung)
+  mod <- proportional_hazards() %>% 
+    fit(Surv(time, status) ~ age + ph.ecog, data = lung)
 
   # time: combination of order, out-of-range, infinite
   pred_time <- c(-Inf, 0, 100, Inf, 1022, 3000)
 
   # multiple observations (with 1 missing)
   lung_pred <- lung[13:15, ]
-  surv_fit <- survfit(mod, newdata = lung_pred)
+  surv_fit <- survfit(mod$fit, newdata = lung_pred)
 
   pred <- survival_prob_coxph(
     mod,
@@ -449,6 +452,19 @@ test_that("survival_prob_coxph() works with confidence intervals", {
   )
 })
 
+test_that("can predict for out-of-domain timepoints", {
+  eval_time_obs_max_and_ood <- c(1022, 2000)
+  obs_without_NA <- lung[2,]
+
+  mod <- proportional_hazards() %>%
+    set_mode("censored regression") %>%
+    set_engine("survival") %>%
+    fit(Surv(time, status) ~ ., data = lung)
+
+  expect_no_error(
+    preds <- predict(mod, obs_without_NA, type = "survival", eval_time = eval_time_obs_max_and_ood)
+  )
+})
 
 # prediction: linear_pred -------------------------------------------------
 

@@ -1,6 +1,8 @@
 library(testthat)
 
 test_that("model object", {
+  skip_if_not_installed("mboost")
+
   lung2 <- lung[-14, ]
   exp_f_fit <- mboost::blackboost(
     Surv(time, status) ~ age + ph.ecog,
@@ -28,6 +30,8 @@ test_that("model object", {
 # prediction: time --------------------------------------------------------
 
 test_that("time predictions", {
+  skip_if_not_installed("mboost")
+
   cox_spec <- boost_tree() %>%
     set_engine("mboost") %>%
     set_mode("censored regression")
@@ -50,6 +54,8 @@ test_that("time predictions", {
 # prediction: survival ----------------------------------------------------
 
 test_that("survival predictions", {
+  skip_if_not_installed("mboost")
+  
   pred_time <- c(0, 100, 200, 10000)
 
   set.seed(403)
@@ -100,7 +106,6 @@ test_that("survival predictions", {
     as.vector(exp_f_pred)
   )
 })
-
 
 test_that("survival_curve_to_prob() works", {
   lung_pred <- tidyr::drop_na(lung)
@@ -161,16 +166,17 @@ test_that("survival_curve_to_prob() works", {
 })
 
 test_that("survival_prob_mboost() works", {
+  skip_if_not_installed("mboost")
+
   lung2 <- lung[-14, ]
-  mboost_object <- mboost::blackboost(
-    Surv(time, status) ~ age + ph.ecog,
-    data = lung2,
-    family = mboost::CoxPH()
-  )
+  mod <- boost_tree() %>%
+    set_engine("mboost") %>%
+    set_mode("censored regression") %>%
+    fit(Surv(time, status) ~ age + ph.ecog, data = lung2)
 
   # can handle missings
   pred <- survival_prob_mboost(
-    mboost_object,
+    mod,
     new_data = lung[14:15, ],
     eval_time = c(0, 100, 200)
   )
@@ -180,16 +186,34 @@ test_that("survival_prob_mboost() works", {
   # skip until mboost::survFit() works with a single row for `newdata`
   # fix submitted: https://github.com/boost-R/mboost/pull/118
   # pred <- survival_prob_mboost(
-  #   mboost_object,
+  #   mod,
   #   new_data = lung[1,],
   #   eval_time = c(0, 100, 200)
   # )
   # expect_equal(nrow(pred), 1)
 })
 
+test_that("can predict for out-of-domain timepoints", {
+  skip_if_not_installed("mboost")
+
+  eval_time_obs_max_and_ood <- c(1022, 2000)
+  obs_without_NA <- lung[c(2,4),] # two observations because of https://github.com/boost-R/mboost/issues/117
+
+  mod <- boost_tree() %>%
+    set_mode("censored regression") %>%
+    set_engine("mboost") %>%
+    fit(Surv(time, status) ~ ., data = lung)
+
+  expect_no_error(
+    preds <- predict(mod, obs_without_NA, type = "survival", eval_time = eval_time_obs_max_and_ood)
+  )
+})
+
 # prediction: linear_pred -------------------------------------------------
 
 test_that("linear_pred predictions", {
+  skip_if_not_installed("mboost")
+
   lung2 <- lung[-14, ]
   exp_f_fit <- mboost::blackboost(
     Surv(time, status) ~ age + ph.ecog,
@@ -227,6 +251,8 @@ test_that("linear_pred predictions", {
 # fit via matrix interface ------------------------------------------------
 
 test_that("`fix_xy()` works", {
+  skip_if_not_installed("mboost")
+  
   lung_x <- as.matrix(lung[, c("age", "ph.ecog")])
   lung_y <- Surv(lung$time, lung$status)
   lung_pred <- lung[1:5, ]

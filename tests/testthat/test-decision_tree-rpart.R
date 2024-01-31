@@ -1,6 +1,8 @@
 library(testthat)
 
 test_that("model object", {
+  skip_if_not_installed("pec")
+
   set.seed(1234)
   exp_f_fit <- pec::pecRpart(Surv(time, status) ~ age + ph.ecog, data = lung)
 
@@ -21,6 +23,8 @@ test_that("model object", {
 # prediction: time --------------------------------------------------------
 
 test_that("time predictions", {
+  skip_if_not_installed("pec")
+
   set.seed(1234)
   exp_f_fit <- pec::pecRpart(Surv(time, status) ~ age + ph.ecog, data = lung)
 
@@ -47,6 +51,8 @@ test_that("time predictions", {
 # prediction: survival ----------------------------------------------------
 
 test_that("survival predictions", {
+  skip_if_not_installed("pec")
+
   set.seed(1234)
   exp_f_fit <- pec::pecRpart(Surv(time, status) ~ age + ph.ecog, data = lung)
 
@@ -95,10 +101,26 @@ test_that("survival predictions", {
   expect_equal(f_pred$.pred[[1]]$.eval_time, 100:200)
 })
 
+test_that("can predict for out-of-domain timepoints", {
+  skip_if_not_installed("pec")
+
+  eval_time_obs_max_and_ood <- c(1022, 2000)
+  obs_without_NA <- lung[2,]
+
+  mod <- decision_tree() %>%
+    set_mode("censored regression") %>%
+    set_engine("rpart") %>%
+    fit(Surv(time, status) ~ ., data = lung)
+
+  expect_no_error(
+    preds <- predict(mod, obs_without_NA, type = "survival", eval_time = eval_time_obs_max_and_ood)
+  )
+})
 
 # fit via matrix interface ------------------------------------------------
 
 test_that("`fix_xy()` works", {
+  skip_if_not_installed("pec")
   skip_if_not_installed("prodlim", minimum_version = "2023.3.31")
 
   lung_x <- as.matrix(lung[, c("age", "ph.ecog")])

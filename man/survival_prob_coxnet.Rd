@@ -11,11 +11,13 @@ survival_prob_coxnet(
   time = deprecated(),
   output = "surv",
   penalty = NULL,
+  multi = FALSE,
   ...
 )
 }
 \arguments{
-\item{object}{A fitted \verb{_coxnet} object.}
+\item{object}{A parsnip \code{model_fit} object resulting from
+\link[parsnip:details_proportional_hazards_glmnet]{proportional_hazards() with engine = "glmnet"}.}
 
 \item{new_data}{Data for prediction.}
 
@@ -27,6 +29,8 @@ survival_prob_coxnet(
 
 \item{penalty}{Penalty value(s).}
 
+\item{multi}{Allow multiple penalty values? Defaults to FALSE.}
+
 \item{...}{Options to pass to \code{\link[survival:survfit]{survival::survfit()}}.}
 }
 \value{
@@ -36,9 +40,11 @@ A tibble with a list column of nested tibbles.
 A wrapper for survival probabilities with coxnet models
 }
 \examples{
+\dontshow{if (rlang::is_installed("glmnet")) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 cox_mod <- proportional_hazards(penalty = 0.1) \%>\%
   set_engine("glmnet") \%>\%
   fit(Surv(time, status) ~ ., data = lung)
 survival_prob_coxnet(cox_mod, new_data = lung[1:3, ], eval_time = 300)
+\dontshow{\}) # examplesIf}
 }
 \keyword{internal}

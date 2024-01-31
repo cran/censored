@@ -29,6 +29,41 @@ test_that("model object", {
   )
 })
 
+# prediction: time --------------------------------------------------------
+
+test_that("time predictions", {
+  skip_if_not_installed("aorsf", "0.1.2")
+
+  lung_orsf <- na.omit(lung)
+
+  set.seed(1234)
+  exp_f_fit <- aorsf::orsf(
+    data = lung_orsf,
+    formula = Surv(time, status) ~ age + ph.ecog
+  )
+  exp_f_pred <- predict(
+    exp_f_fit, 
+    new_data = lung,
+    pred_type = "time",
+    na_action = "pass"
+  )
+
+  mod_spec <- rand_forest() %>%
+    set_engine("aorsf") %>%
+    set_mode("censored regression")
+  set.seed(1234)
+  f_fit <- fit(mod_spec, Surv(time, status) ~ age + ph.ecog, data = lung_orsf)
+  f_pred <- predict(f_fit, lung, type = "time")
+
+  expect_s3_class(f_pred, "tbl_df")
+  expect_true(all(names(f_pred) == ".pred_time"))
+  expect_equal(f_pred$.pred_time, as.vector(exp_f_pred))
+  expect_equal(nrow(f_pred), nrow(lung))
+
+  # single observation
+  f_pred_1 <- predict(f_fit, lung[2,], type = "time")
+  expect_identical(nrow(f_pred_1), 1L)
+})
 
 # prediction: survival ----------------------------------------------------
 
@@ -160,10 +195,28 @@ test_that("survival predictions", {
   )
 })
 
+test_that("can predict for out-of-domain timepoints", {
+  skip_if_not_installed("aorsf")
+
+  eval_time_obs_max_and_ood <- c(1022, 2000)
+  obs_without_NA <- lung[2,]
+  lung_orsf <- na.omit(lung)
+
+  mod <- rand_forest() %>%
+    set_mode("censored regression") %>%
+    set_engine("aorsf") %>%
+    fit(Surv(time, status) ~ ., data = lung_orsf)
+
+  expect_no_error(
+    preds <- predict(mod, obs_without_NA, type = "survival", eval_time = eval_time_obs_max_and_ood)
+  )
+})
 
 # fit via matrix interface ------------------------------------------------
 
 test_that("`fix_xy()` works", {
+  skip_if_not_installed("aorsf")
+
   lung_orsf <- na.omit(lung)
 
   lung_x <- as.matrix(lung_orsf[, c("age", "ph.ecog")])
@@ -178,11 +231,16 @@ test_that("`fix_xy()` works", {
   set.seed(1)
   xy_fit <- fit_xy(spec, x = lung_x, y = lung_y)
 
-  elements_to_ignore <- "data"
-  f_fit_modified <- f_fit$fit
-  xy_fit_modified <- xy_fit$fit
-  f_fit_modified[elements_to_ignore] <- NULL
-  xy_fit_modified[elements_to_ignore] <- NULL
+  if (utils::packageVersion("aorsf") >= "0.1.2") {
+    f_fit_modified <- f_fit$fit$forest
+    xy_fit_modified <- xy_fit$fit$forest
+  } else {
+    elements_to_ignore <- "data"
+    f_fit_modified <- f_fit$fit
+    xy_fit_modified <- xy_fit$fit
+    f_fit_modified[elements_to_ignore] <- NULL
+    xy_fit_modified[elements_to_ignore] <- NULL
+  }
 
   expect_equal(
     f_fit_modified,
@@ -210,6 +268,8 @@ test_that("`fix_xy()` works", {
 # case weights ------------------------------------------------------------
 
 test_that("can handle case weights", {
+  skip_if_not_installed("aorsf")
+  
   dat <- make_cens_wts()
 
   expect_error(
@@ -222,8 +282,14 @@ test_that("can handle case weights", {
     regexp = NA
   )
 
+  if (utils::packageVersion("aorsf") >= "0.1.2") {
+    fit_weights <- wt_fit$fit$weights
+  } else {
+    fit_weights <- attr(wt_fit$fit, "weights_user")
+  }
+
   expect_equal(
-    attr(wt_fit$fit, "weights_user"),
+    fit_weights,
     as.vector(dat$wts)
   )
 })

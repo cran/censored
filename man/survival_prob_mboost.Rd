@@ -7,13 +7,13 @@
 survival_prob_mboost(object, new_data, eval_time, time = deprecated())
 }
 \arguments{
+\item{object}{A parsnip \code{model_fit} object resulting from \link[parsnip:details_boost_tree_mboost]{boost_tree() with engine = "mboost"}.}
+
 \item{new_data}{Data for prediction.}
 
 \item{eval_time}{A vector of integers for prediction times.}
 
 \item{time}{Deprecated in favor of \code{eval_time}. A vector of integers for prediction times.}
-
-\item{x}{A model from \code{blackboost()}.}
 }
 \value{
 A tibble with a list column of nested tibbles.
@@ -22,8 +22,12 @@ A tibble with a list column of nested tibbles.
 A wrapper for survival probabilities with mboost models
 }
 \examples{
-library(mboost)
-mod <- blackboost(Surv(time, status) ~ ., data = lung, family = CoxPH())
+\dontshow{if (rlang::is_installed("mboost")) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+mod <- boost_tree() \%>\%
+  set_engine("mboost") \%>\%
+  set_mode("censored regression") \%>\%
+  fit(Surv(time, status) ~ ., data = lung)
 survival_prob_mboost(mod, new_data = lung[1:3, ], eval_time = 300)
+\dontshow{\}) # examplesIf}
 }
 \keyword{internal}

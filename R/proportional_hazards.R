@@ -20,6 +20,7 @@ fit.proportional_hazards <- function(object,
     # is set up: parsnip::prepare_data() would automatically run with the
     # modified terms in $preproc$terms which are missing the strata term
     res$preproc$coxnet <- res$fit$preproc[!training_data_ind]
+    res$fit <- res$fit$fit
     res$formula <- formula
   }
 
@@ -36,7 +37,7 @@ fit_xy.proportional_hazards <- function(object,
   # special case for glmnet, which puts stratification on the response
   # via `glmnet::stratifySurv()`
   if (inherits(y, "stratifySurv")) {
-    rlang::abort("For stratification, please use the formula interface via `fit()`.")
+    cli::cli_abort("For stratification, please use the formula interface via {.fn fit}.")
   }
 
   # call parsnip::fit_xy.model_spec()
@@ -44,13 +45,10 @@ fit_xy.proportional_hazards <- function(object,
 
   if (object$engine == "glmnet") {
     # we need to keep the training data for prediction
-    if (!is.matrix(x)) {
-      x <- parsnip::maybe_matrix(x)
-    }
-    if (!inherits(y, "Surv")) {
-      y <- y[[1]]
-    }
-    res$training_data <- list(x = x, y = y)
+    # res$fit$preproc carries it as used inside of `coxnet_train()`
+    training_data_ind <- names(res$fit$preproc) %in% c("x", "y")
+    res$training_data <- res$fit$preproc[training_data_ind]
+    res$fit <- res$fit$fit
   }
 
   res

@@ -38,7 +38,7 @@ proportion matrices. Default is 1 for each observation}
 
 \item{...}{additional parameters passed to glmnet::glmnet.}
 
-\item{call}{The call passed to \code{\link[rlang:abort]{rlang::abort()}}.}
+\item{call}{The call used in errors and warnings.}
 }
 \value{
 A fitted \code{glmnet} model.
@@ -59,6 +59,8 @@ The wrapper retains the original formula and the pre-processing elements
 including the training data to allow for predictions from the fitted model.
 }
 \examples{
+\dontshow{if (rlang::is_installed("glmnet")) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 coxnet_mod <- coxnet_train(Surv(time, status) ~ age + sex, data = lung)
+\dontshow{\}) # examplesIf}
 }
 \keyword{internal}
