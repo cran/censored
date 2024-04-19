@@ -1,3 +1,8 @@
+# censored 0.3.1
+
+* Internal changes to the `predict()` methods for flexsurv models, in preparation for the upcoming flexsurv release (#317).
+
+
 # censored 0.3.0
 
 ## New features
