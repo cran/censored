@@ -1,6 +1,6 @@
 Package: censored
 Title: 'parsnip' Engines for Survival Models
-Version: 0.3.1
+Version: 0.3.2
 Authors@R: c(
     person("Emil", "Hvitfeldt", , "emil.hvitfeldt@posit.co", role = "aut",
            comment = c(ORCID = "0000-0002-0679-1945")),
@@ -17,7 +17,7 @@ License: MIT + file LICENSE
 URL: https://github.com/tidymodels/censored,
         https://censored.tidymodels.org
 BugReports: https://github.com/tidymodels/censored/issues
-Depends: parsnip (>= 1.1.0), R (>= 3.5.0), survival (>= 3.3-1)
+Depends: parsnip (>= 1.1.0), R (>= 3.5.0), survival (>= 3.7-0)
 Imports: cli, dials, dplyr (>= 0.8.0.1), generics, glue, hardhat (>=
         1.1.0), lifecycle, mboost, prodlim (>= 2023.03.31), purrr,
         rlang (>= 1.0.0), stats, tibble (>= 3.1.3), tidyr (>= 1.0.0)
@@ -30,10 +30,10 @@ Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.1
 NeedsCompilation: no
-Packaged: 2024-04-19 16:34:11 UTC; hannah
+Packaged: 2024-06-11 16:39:28 UTC; hannah
 Author: Emil Hvitfeldt [aut] (<https://orcid.org/0000-0002-0679-1945>),
   Hannah Frick [aut, cre] (<https://orcid.org/0000-0002-6049-5258>),
   Posit Software, PBC [cph, fnd]
 Maintainer: Hannah Frick <hannah@posit.co>
 Repository: CRAN
-Date/Publication: 2024-04-19 17:02:41 UTC
+Date/Publication: 2024-06-11 18:10:02 UTC

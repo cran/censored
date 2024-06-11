@@ -116,111 +116,6 @@ available_survfit_summary_elements <- function(object) {
   )
 }
 
-survfit_summary_patch_infinite_time <- function(object, eval_time) {
-  time_neg_inf <- is.infinite(eval_time) & (eval_time < 0)
-  time_inf <- is.infinite(eval_time) & (eval_time > 0)
-
-  patch_neg_inf <- function(x, value, n_patch) {
-    rbind(
-      matrix(value, nrow = n_patch, ncol = ncol(x)),
-      x
-    )
-  }
-  patch_inf <- function(x, value, n_patch) {
-    rbind(
-      x,
-      matrix(value, nrow = n_patch, ncol = ncol(x))
-    )
-  }
-
-  # glmnet does not provide standard errors etc
-  has_std_error <- "std.err" %in% names(object)
-
-  if (any(time_neg_inf)) {
-    object$surv <- patch_neg_inf(
-      object$surv,
-      value = 1,
-      n_patch = sum(time_neg_inf)
-    )
-    object$cumhaz <- patch_neg_inf(
-      object$cumhaz,
-      value = 0,
-      n_patch = sum(time_neg_inf)
-    )
-    if (has_std_error) {
-      object$std.err <- patch_neg_inf(
-        object$std.err,
-        value = NA_real_,
-        n_patch = sum(time_neg_inf)
-      )
-      object$lower <- patch_neg_inf(
-        object$lower,
-        value = NA_real_,
-        n_patch = sum(time_neg_inf)
-      )
-      object$upper <- patch_neg_inf(
-        object$upper,
-        value = NA_real_,
-        n_patch = sum(time_neg_inf)
-      )
-      object$std.chaz <- patch_neg_inf(
-        object$std.chaz,
-        value = NA_real_,
-        n_patch = sum(time_neg_inf)
-      )
-    }
-  }
-  if (any(time_inf)) {
-    object$surv <- patch_inf(object$surv, value = 0, n_patch = sum(time_inf))
-    object$cumhaz <- patch_inf(
-      object$cumhaz,
-      value = 1,
-      n_patch = sum(time_inf)
-    )
-    if (has_std_error) {
-      object$std.err <- patch_inf(
-        object$std.err,
-        value = NA_real_,
-        n_patch = sum(time_inf)
-      )
-      object$lower <- patch_inf(
-        object$lower,
-        value = NA_real_,
-        n_patch = sum(time_inf)
-      )
-      object$upper <- patch_inf(
-        object$upper,
-        value = NA_real_,
-        n_patch = sum(time_inf)
-      )
-      object$std.chaz <- patch_inf(
-        object$std.chaz,
-        value = NA_real_,
-        n_patch = sum(time_inf)
-      )
-    }
-  }
-
-  object
-}
-
-survfit_summary_restore_time_order <- function(object, eval_time) {
-  # preserve original order of `eval_time` because `summary()` returns a result for
-  # an ordered vector of finite time
-  # Note that this requires a survfit summary object which has already been
-  # patched for infinite time points
-  original_order_time <- match(eval_time, sort(eval_time))
-
-  elements <- available_survfit_summary_elements(object)
-
-  # restore original order of prediction time points
-  for (i in elements) {
-    object[[i]] <- object[[i]][original_order_time, , drop = FALSE]
-  }
-
-  object
-}
-
 survfit_summary_patch_missings <- function(object, index_missing, eval_time, n_obs) {
   if (is.null(index_missing)) {
     return(object)
@@ -264,8 +159,6 @@ survfit_summary_to_patched_tibble <- function(object, index_missing, eval_time, 
   object %>%
     summary(times = eval_time, extend = TRUE) %>%
     survfit_summary_typestable() %>%
-    survfit_summary_patch_infinite_time(eval_time = eval_time) %>%
-    survfit_summary_restore_time_order(eval_time = eval_time) %>%
     survfit_summary_patch_missings(
       index_missing = index_missing,
       eval_time = eval_time,
@@ -275,7 +168,7 @@ survfit_summary_to_patched_tibble <- function(object, index_missing, eval_time, 
 }
 
 combine_list_of_survfit_summary <- function(object, eval_time) {
-  n_time <- sum(is.finite(eval_time))
+  n_time <- length(eval_time)
   elements <- available_survfit_summary_elements(object[[1]])
 
   ret <- list()
@@ -291,8 +184,6 @@ combine_list_of_survfit_summary <- function(object, eval_time) {
 survfit_summary_patch <- function(object, index_missing, eval_time, n_obs) {
   object %>%
     survfit_summary_typestable() %>%
-    survfit_summary_patch_infinite_time(eval_time = eval_time) %>%
-    survfit_summary_restore_time_order(eval_time = eval_time) %>%
     survfit_summary_patch_missings(
       index_missing = index_missing,
       eval_time = eval_time,
