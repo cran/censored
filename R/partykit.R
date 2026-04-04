@@ -1,6 +1,6 @@
 #' A wrapper for survival probabilities with partykit models
-#' @param object A parsnip `model_fit` object resulting from 
-#' [decision_tree() with engine = "partykit"][parsnip::details_decision_tree_partykit] or 
+#' @param object A parsnip `model_fit` object resulting from
+#' [decision_tree() with engine = "partykit"][parsnip::details_decision_tree_partykit] or
 #' [rand_forest() with engine = "partykit"][parsnip::details_rand_forest_partykit].
 #' @param new_data A data frame to be predicted.
 #' @param eval_time A vector of times to predict the survival probability.
@@ -10,23 +10,27 @@
 #' @export
 #' @keywords internal
 #' @examplesIf rlang::is_installed(c("partykit", "coin"))
-#' tree <- decision_tree() %>%
-#'   set_mode("censored regression") %>%
-#'   set_engine("partykit") %>%
+#' tree <- decision_tree() |>
+#'   set_mode("censored regression") |>
+#'   set_engine("partykit") |>
 #'   fit(Surv(time, status) ~ age + ph.ecog, data = lung)
 #' survival_prob_partykit(tree, lung[1:3, ], eval_time = 100)
-#' forest <- rand_forest() %>%
-#'   set_mode("censored regression") %>%
-#'   set_engine("partykit") %>%
+#' forest <- rand_forest() |>
+#'   set_mode("censored regression") |>
+#'   set_engine("partykit") |>
 #'   fit(Surv(time, status) ~ age + ph.ecog, data = lung[1:100, ])
 #' survival_prob_partykit(forest, lung[1:3, ], eval_time = 100)
-survival_prob_partykit <- function(object,
-                                   new_data,
-                                   eval_time,
-                                   time = deprecated(),
-                                   output = "surv") {
+survival_prob_partykit <- function(
+  object,
+  new_data,
+  eval_time,
+  time = deprecated(),
+  output = "surv"
+) {
   if (inherits(object, "party")) {
-    cli::cli_abort("{.arg object} needs to be a parsnip {.cls model_fit} object, not a {.cls party} object.")
+    cli::cli_abort(
+      "{.arg object} needs to be a parsnip {.cls model_fit} object, not a {.cls party} object."
+    )
   }
 
   if (lifecycle::is_present(time)) {
@@ -49,7 +53,12 @@ survival_prob_partykit <- function(object,
 
   y <- predict(object$fit, newdata = new_data, type = "prob")
 
-  survfit_summary_list <- purrr::map(y, summary, times = eval_time, extend = TRUE)
+  survfit_summary_list <- purrr::map(
+    y,
+    summary,
+    times = eval_time,
+    extend = TRUE
+  )
   survfit_summary_combined <- combine_list_of_survfit_summary(
     survfit_summary_list,
     eval_time = eval_time
@@ -60,10 +69,10 @@ survival_prob_partykit <- function(object,
     index_missing = missings_in_new_data,
     eval_time = eval_time,
     n_obs = n_obs
-  ) %>%
-    survfit_summary_to_tibble(eval_time = eval_time, n_obs = n_obs) %>%
-    keep_cols(output) %>%
-    tidyr::nest(.pred = c(-.row)) %>%
+  ) |>
+    survfit_summary_to_tibble(eval_time = eval_time, n_obs = n_obs) |>
+    keep_cols(output) |>
+    tidyr::nest(.pred = c(-.row)) |>
     dplyr::select(-.row)
 
   res

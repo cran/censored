@@ -7,11 +7,10 @@ test_that("model object", {
   exp_f_fit <- ipred::bagging(Surv(time, status) ~ age + ph.ecog, data = lung)
 
   # formula method
-  mod_spec <- bag_tree(engine = "rpart") %>% set_mode("censored regression")
+  mod_spec <- bag_tree(engine = "rpart") |> set_mode("censored regression")
   set.seed(1234)
-  expect_error(
-    f_fit <- fit(mod_spec, Surv(time, status) ~ age + ph.ecog, data = lung),
-    NA
+  expect_no_error(
+    f_fit <- fit(mod_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
   )
 
   # Removing `call` element from both, it differs in the `data` arg
@@ -32,8 +31,8 @@ test_that("main args work without set_model_arg()", {
   )
 
   # formula method
-  mod_spec <- bag_tree(tree_depth = 20, min_n = 10, cost_complexity = 0.5) %>%
-    set_mode("censored regression") %>%
+  mod_spec <- bag_tree(tree_depth = 20, min_n = 10, cost_complexity = 0.5) |>
+    set_mode("censored regression") |>
     set_engine("rpart")
   set.seed(1234)
   f_fit <- fit(mod_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
@@ -51,7 +50,7 @@ test_that("time predictions", {
   exp_f_fit <- ipred::bagging(Surv(time, status) ~ age + ph.ecog, data = lung)
   exp_f_pred <- predict(exp_f_fit, lung)
 
-  mod_spec <- bag_tree(engine = "rpart") %>% set_mode("censored regression")
+  mod_spec <- bag_tree(engine = "rpart") |> set_mode("censored regression")
   set.seed(1234)
   f_fit <- fit(mod_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
   f_pred <- predict(f_fit, lung, type = "time")
@@ -60,7 +59,7 @@ test_that("time predictions", {
   expect_true(all(names(f_pred) == ".pred_time"))
   expect_equal(
     f_pred$.pred_time,
-    purrr::map_dbl(exp_f_pred, ~ quantile(.x, probs = .5)$quantile)
+    purrr::map_dbl(exp_f_pred, \(.x) quantile(.x, probs = .5)$quantile)
   )
   expect_equal(nrow(f_pred), nrow(lung))
 
@@ -72,15 +71,14 @@ test_that("time predictions", {
 test_that("time predictions without surrogate splits for NA", {
   skip_if_not_installed("ipred")
 
-  mod_spec <- bag_tree(engine = "rpart") %>% set_mode("censored regression")
+  mod_spec <- bag_tree(engine = "rpart") |> set_mode("censored regression")
   f_fit <- fit(mod_spec, Surv(time, status) ~ ph.ecog, data = lung)
 
   # lung$ph.ecog[14] is NA
   new_data_3 <- lung[13:15, ]
 
-  expect_error(
-    f_pred <- predict(f_fit, new_data_3, type = "time"),
-    NA
+  expect_no_error(
+    f_pred <- predict(f_fit, new_data_3, type = "time")
   )
   expect_equal(nrow(f_pred), nrow(new_data_3))
   expect_equal(which(is.na(f_pred$.pred_time)), 2)
@@ -102,7 +100,7 @@ test_that("survival predictions", {
   set.seed(1234)
   exp_f_fit <- ipred::bagging(Surv(time, status) ~ age + ph.ecog, data = lung)
 
-  mod_spec <- bag_tree(engine = "rpart") %>% set_mode("censored regression")
+  mod_spec <- bag_tree(engine = "rpart") |> set_mode("censored regression")
   set.seed(1234)
   f_fit <- fit(mod_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
 
@@ -111,20 +109,20 @@ test_that("survival predictions", {
   f_pred <- predict(f_fit, lung, type = "survival", eval_time = 100:200)
   exp_f_pred <- purrr::map(
     predict(exp_f_fit, lung),
-    ~summary(.x, times = c(100:200))$surv
+    \(.x) summary(.x, times = c(100:200))$surv
   )
 
   expect_s3_class(f_pred, "tbl_df")
   expect_equal(names(f_pred), ".pred")
   expect_equal(nrow(f_pred), nrow(lung))
   expect_true(
-    all(purrr::map_lgl(f_pred$.pred, ~all(dim(.x) == c(101, 2))))
+    all(purrr::map_lgl(f_pred$.pred, \(.x) all(dim(.x) == c(101, 2))))
   )
   expect_true(
     all(
       purrr::map_lgl(
         f_pred$.pred,
-        ~all(names(.x) == c(".eval_time", ".pred_survival"))
+        \(.x) all(names(.x) == c(".eval_time", ".pred_survival"))
       )
     )
   )
@@ -141,7 +139,7 @@ test_that("survival predictions", {
   f_pred <- predict(f_fit, lung, type = "survival", eval_time = 10000)
   exp_f_pred <- purrr::map(
     predict(exp_f_fit, lung),
-    ~summary(.x, times = c(max(.x$time)))$surv
+    \(.x) summary(.x, times = c(max(.x$time)))$surv
   )
 
   expect_equal(
@@ -153,8 +151,8 @@ test_that("survival predictions", {
 test_that("survival predictions - error snapshot", {
   skip_if_not_installed("parsnip", minimum_version = "1.3.0")
   skip_if_not_installed("ipred")
-  
-  mod_spec <- bag_tree(engine = "rpart") %>% set_mode("censored regression")
+
+  mod_spec <- bag_tree(engine = "rpart") |> set_mode("censored regression")
   set.seed(1234)
   f_fit <- fit(mod_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
 
@@ -168,8 +166,8 @@ test_that("survival_prob_survbagg() works", {
 
   set.seed(1234)
   # use only ph.ecog to force missings by avoiding surrogate splits
-  mod <-  bag_tree(engine = "rpart") %>%
-    set_mode("censored regression") %>%
+  mod <- bag_tree(engine = "rpart") |>
+    set_mode("censored regression") |>
     fit(Surv(time, status) ~ ph.ecog, data = lung)
   engine_mod <- extract_fit_engine(mod)
   # time: combination of order, out-of-range, infinite
@@ -183,10 +181,14 @@ test_that("survival_prob_survbagg() works", {
     summary,
     times = pred_time,
     extend = TRUE
-  ) %>%
+  ) |>
     combine_list_of_survfit_summary(eval_time = pred_time)
 
-  prob <- survival_prob_survbagg(mod, new_data = lung_pred, eval_time = pred_time)
+  prob <- survival_prob_survbagg(
+    mod,
+    new_data = lung_pred,
+    eval_time = pred_time
+  )
   exp_prob <- surv_fit_summary$surv
 
   prob_na <- prob$.pred[[2]]
@@ -207,10 +209,14 @@ test_that("survival_prob_survbagg() works", {
     summary,
     times = pred_time,
     extend = TRUE
-  ) %>%
+  ) |>
     combine_list_of_survfit_summary(eval_time = pred_time)
 
-  prob <- survival_prob_survbagg(mod, new_data = lung_pred, eval_time = pred_time)
+  prob <- survival_prob_survbagg(
+    mod,
+    new_data = lung_pred,
+    eval_time = pred_time
+  )
   prob <- tidyr::unnest(prob, cols = .pred)
   exp_prob <- surv_fit_summary$surv
 
@@ -219,7 +225,11 @@ test_that("survival_prob_survbagg() works", {
   # all observations with missings
   lung_pred <- lung[c(14, 14), ]
 
-  prob <- survival_prob_survbagg(mod, new_data = lung_pred, eval_time = pred_time)
+  prob <- survival_prob_survbagg(
+    mod,
+    new_data = lung_pred,
+    eval_time = pred_time
+  )
   prob <- tidyr::unnest(prob, cols = .pred)
   expect_true(all(is.na(prob$.pred_survival)))
 })
@@ -227,20 +237,19 @@ test_that("survival_prob_survbagg() works", {
 test_that("survival predictions without surrogate splits for NA", {
   skip_if_not_installed("ipred")
 
-  mod_spec <- bag_tree(engine = "rpart") %>% set_mode("censored regression")
+  mod_spec <- bag_tree(engine = "rpart") |> set_mode("censored regression")
   f_fit <- fit(mod_spec, Surv(time, status) ~ ph.ecog, data = lung)
 
   # lung$ph.ecog[14] is NA
   new_data_3 <- lung[13:15, ]
 
-  expect_error(
+  expect_no_error(
     f_pred <- predict(
       f_fit,
       new_data_3,
       type = "survival",
       eval_time = c(100, 500, 1000)
-    ),
-    NA
+    )
   )
   expect_equal(nrow(f_pred), nrow(new_data_3))
   expect_true(!any(is.na(f_pred$.pred[[1]]$.pred_survival)))
@@ -252,15 +261,20 @@ test_that("can predict for out-of-domain timepoints", {
   skip_if_not_installed("ipred")
 
   eval_time_obs_max_and_ood <- c(1022, 2000)
-  obs_without_NA <- lung[2,]
+  obs_without_NA <- lung[2, ]
 
-  mod <- bag_tree() %>%
-    set_mode("censored regression") %>%
-    set_engine("rpart") %>%
+  mod <- bag_tree() |>
+    set_mode("censored regression") |>
+    set_engine("rpart") |>
     fit(Surv(time, status) ~ ., data = lung)
 
   expect_no_error(
-    preds <- predict(mod, obs_without_NA, type = "survival", eval_time = eval_time_obs_max_and_ood)
+    preds <- predict(
+      mod,
+      obs_without_NA,
+      type = "survival",
+      eval_time = eval_time_obs_max_and_ood
+    )
   )
 })
 
@@ -268,13 +282,13 @@ test_that("can predict for out-of-domain timepoints", {
 
 test_that("`fix_xy()` works", {
   skip_if_not_installed("ipred")
-  
+
   lung_x <- as.matrix(lung[, c("age", "ph.ecog")])
   lung_y <- Surv(lung$time, lung$status)
   lung_pred <- lung[1:5, ]
 
-  spec <- bag_tree() %>%
-    set_engine("rpart") %>%
+  spec <- bag_tree() |>
+    set_engine("rpart") |>
     set_mode("censored regression")
 
   set.seed(1)

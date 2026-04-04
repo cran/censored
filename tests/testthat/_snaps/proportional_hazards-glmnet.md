@@ -65,6 +65,16 @@
 # formula modifications to remove strata
 
     Code
+      check_strata_remaining(rlang::expr(x * (y + strata(s)) + z))
+    Condition
+      Error:
+      ! Stratification must be nested under a chain of `+` calls.
+      i # Good: `~ x1 + x2 + strata(s)`
+      i # Bad: `~ x1 + (x2 + strata(s))`
+
+---
+
+    Code
       fit(spec, Surv(time, status) ~ strata(sex), data = lung)
     Condition
       Error:
@@ -83,8 +93,8 @@
 # protect certain glmnet engine args
 
     Code
-      proportional_hazards(penalty = 0.1) %>% set_engine("glmnet", family = "gaussian") %>%
-        fit(Surv(time, status) ~ age + sex, data = lung)
+      fit(set_engine(proportional_hazards(penalty = 0.1), "glmnet", family = "gaussian"),
+      Surv(time, status) ~ age + sex, data = lung)
     Condition
       Error:
       ! This argument cannot be used to create the model: `family`.

@@ -10,24 +10,24 @@
 #' @examples
 #' # Accelerated Failure Time (AFT) model
 #'
-#' fit_aft <- survival_reg(dist = "weibull") %>%
-#'   set_engine("survival") %>%
+#' fit_aft <- survival_reg(dist = "weibull") |>
+#'   set_engine("survival") |>
 #'   fit(Surv(time, status) ~ age + sex + ph.karno, data = lung)
 #' predict(fit_aft, lung[1:3, ], type = "time")
 #'
 #'
 #' # Cox's Proportional Hazards model
 #'
-#' fit_cox <- proportional_hazards() %>%
-#'   set_engine("survival") %>%
+#' fit_cox <- proportional_hazards() |>
+#'   set_engine("survival") |>
 #'   fit(Surv(time, status) ~ age + sex + ph.karno, data = lung)
 #' predict(fit_cox, lung[1:3, ], type = "time")
 #'
 #'
 #' # Andersen-Gill model for recurring events
 #'
-#' fit_ag <- proportional_hazards() %>%
-#'   set_engine("survival") %>%
+#' fit_ag <- proportional_hazards() |>
+#'   set_engine("survival") |>
 #'   fit(Surv(tstart, tstop, status) ~ treat + inherit + age + strata(hos.cat),
 #'     data = cgd
 #'   )
@@ -37,7 +37,6 @@
 
 ## usethis namespace: start
 #' @importFrom dials parameters
-#' @importFrom dplyr %>%
 #' @importFrom generics fit fit_xy
 #' @importFrom hardhat tune
 #' @importFrom lifecycle deprecated
@@ -87,7 +86,7 @@ utils::globalVariables(
 )
 
 # quiet R-CMD-check NOTEs that prodlim is unused
-# (parsnip uses it for all censored regression models 
+# (parsnip uses it for all censored regression models
 # but only has it in Suggests)
 #' @importFrom prodlim prodlim
 NULL

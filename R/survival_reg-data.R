@@ -70,12 +70,11 @@ make_survival_reg_survival <- function() {
       pre = NULL,
       post = NULL,
       func = c(fun = "predict"),
-      args =
-        list(
-          object = expr(object$fit),
-          newdata = expr(new_data),
-          type = "response"
-        )
+      args = list(
+        object = expr(object$fit),
+        newdata = expr(new_data),
+        type = "response"
+      )
     )
   )
 
@@ -106,12 +105,11 @@ make_survival_reg_survival <- function() {
       pre = NULL,
       post = NULL,
       func = c(pkg = "censored", fun = "hazard_survreg"),
-      args =
-        list(
-          object = expr(object),
-          new_data = expr(new_data),
-          eval_time = expr(eval_time)
-        )
+      args = list(
+        object = expr(object),
+        new_data = expr(new_data),
+        eval_time = expr(eval_time)
+      )
     )
   )
 
@@ -124,12 +122,11 @@ make_survival_reg_survival <- function() {
       pre = NULL,
       post = NULL,
       func = c(pkg = "censored", fun = "survival_prob_survreg"),
-      args =
-        list(
-          object = expr(object),
-          new_data = expr(new_data),
-          eval_time = expr(eval_time)
-        )
+      args = list(
+        object = expr(object),
+        new_data = expr(new_data),
+        eval_time = expr(eval_time)
+      )
     )
   )
 
@@ -142,12 +139,11 @@ make_survival_reg_survival <- function() {
       pre = NULL,
       post = NULL,
       func = c(fun = "predict"),
-      args =
-        list(
-          object = expr(object$fit),
-          newdata = expr(new_data),
-          type = "linear"
-        )
+      args = list(
+        object = expr(object$fit),
+        newdata = expr(new_data),
+        type = "linear"
+      )
     )
   )
 }
@@ -219,12 +215,11 @@ make_survival_reg_flexsurv <- function() {
       pre = NULL,
       post = NULL,
       func = c(fun = "predict"),
-      args =
-        list(
-          object = rlang::expr(object$fit),
-          newdata = rlang::expr(new_data),
-          type = "mean"
-        )
+      args = list(
+        object = rlang::expr(object$fit),
+        newdata = rlang::expr(new_data),
+        type = "mean"
+      )
     )
   )
 
@@ -257,13 +252,12 @@ make_survival_reg_flexsurv <- function() {
       pre = NULL,
       post = flexsurv_post,
       func = c(fun = "predict"),
-      args =
-        list(
-          object = rlang::expr(object$fit),
-          newdata = rlang::expr(new_data),
-          type = "hazard",
-          times = rlang::expr(eval_time)
-        )
+      args = list(
+        object = rlang::expr(object$fit),
+        newdata = rlang::expr(new_data),
+        type = "hazard",
+        times = rlang::expr(eval_time)
+      )
     )
   )
 
@@ -276,15 +270,14 @@ make_survival_reg_flexsurv <- function() {
       pre = NULL,
       post = flexsurv_post,
       func = c(fun = "predict"),
-      args =
-        list(
-          object = expr(object$fit),
-          newdata = expr(new_data),
-          type = "survival",
-          times = expr(eval_time),
-          conf.int = rlang::expr(interval == "confidence"),
-          conf.level = rlang::expr(level)
-        )
+      args = list(
+        object = expr(object$fit),
+        newdata = expr(new_data),
+        type = "survival",
+        times = expr(eval_time),
+        conf.int = rlang::expr(interval == "confidence"),
+        conf.level = rlang::expr(level)
+      )
     )
   )
 
@@ -302,17 +295,16 @@ make_survival_reg_flexsurv <- function() {
         location_index <- which(object$fit$dlist$pars == location_name)
         transformation <- object$fit$dlist$transforms[[location_index]]
 
-        results %>%
-          dplyr::mutate(.pred_linear_pred = transformation(.pred_link)) %>%
+        results |>
+          dplyr::mutate(.pred_linear_pred = transformation(.pred_link)) |>
           dplyr::select(.pred_linear_pred)
       },
       func = c(fun = "predict"),
-      args =
-        list(
-          object = expr(object$fit),
-          newdata = expr(new_data),
-          type = "linear"
-        )
+      args = list(
+        object = expr(object$fit),
+        newdata = expr(new_data),
+        type = "linear"
+      )
     )
   )
 }
@@ -375,12 +367,11 @@ make_survival_reg_flexsurvspline <- function() {
       pre = NULL,
       post = NULL,
       func = c(fun = "predict"),
-      args =
-        list(
-          object = rlang::expr(object$fit),
-          newdata = rlang::expr(new_data),
-          type = "mean"
-        )
+      args = list(
+        object = rlang::expr(object$fit),
+        newdata = rlang::expr(new_data),
+        type = "mean"
+      )
     )
   )
 
@@ -413,13 +404,12 @@ make_survival_reg_flexsurvspline <- function() {
       pre = NULL,
       post = flexsurv_post,
       func = c(fun = "predict"),
-      args =
-        list(
-          object = rlang::expr(object$fit),
-          newdata = rlang::expr(new_data),
-          type = "hazard",
-          times = rlang::expr(eval_time)
-        )
+      args = list(
+        object = rlang::expr(object$fit),
+        newdata = rlang::expr(new_data),
+        type = "hazard",
+        times = rlang::expr(eval_time)
+      )
     )
   )
 
@@ -432,15 +422,14 @@ make_survival_reg_flexsurvspline <- function() {
       pre = NULL,
       post = flexsurv_post,
       func = c(fun = "predict"),
-      args =
-        list(
-          object = expr(object$fit),
-          newdata = expr(new_data),
-          type = "survival",
-          times = expr(eval_time),
-          conf.int = rlang::expr(interval == "confidence"),
-          conf.level = rlang::expr(level)
-        )
+      args = list(
+        object = expr(object$fit),
+        newdata = expr(new_data),
+        type = "survival",
+        times = expr(eval_time),
+        conf.int = rlang::expr(interval == "confidence"),
+        conf.level = rlang::expr(level)
+      )
     )
   )
 
@@ -458,17 +447,16 @@ make_survival_reg_flexsurvspline <- function() {
         location_index <- which(object$fit$dlist$pars == location_name)
         transformation <- object$fit$dlist$transforms[[location_index]]
 
-        results %>%
-          dplyr::mutate(.pred_linear_pred = transformation(.pred_link)) %>%
+        results |>
+          dplyr::mutate(.pred_linear_pred = transformation(.pred_link)) |>
           dplyr::select(.pred_linear_pred)
       },
       func = c(fun = "predict"),
-      args =
-        list(
-          object = expr(object$fit),
-          newdata = expr(new_data),
-          type = "linear"
-        )
+      args = list(
+        object = expr(object$fit),
+        newdata = expr(new_data),
+        type = "linear"
+      )
     )
   )
 }

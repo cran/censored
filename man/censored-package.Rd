@@ -16,24 +16,24 @@ censored.
 \examples{
 # Accelerated Failure Time (AFT) model
 
-fit_aft <- survival_reg(dist = "weibull") \%>\%
-  set_engine("survival") \%>\%
+fit_aft <- survival_reg(dist = "weibull") |>
+  set_engine("survival") |>
   fit(Surv(time, status) ~ age + sex + ph.karno, data = lung)
 predict(fit_aft, lung[1:3, ], type = "time")
 
 
 # Cox's Proportional Hazards model
 
-fit_cox <- proportional_hazards() \%>\%
-  set_engine("survival") \%>\%
+fit_cox <- proportional_hazards() |>
+  set_engine("survival") |>
   fit(Surv(time, status) ~ age + sex + ph.karno, data = lung)
 predict(fit_cox, lung[1:3, ], type = "time")
 
 
 # Andersen-Gill model for recurring events
 
-fit_ag <- proportional_hazards() \%>\%
-  set_engine("survival") \%>\%
+fit_ag <- proportional_hazards() |>
+  set_engine("survival") |>
   fit(Surv(tstart, tstop, status) ~ treat + inherit + age + strata(hos.cat),
     data = cgd
   )
@@ -59,7 +59,7 @@ Authors:
 
 Other contributors:
 \itemize{
-  \item Posit Software, PBC [copyright holder, funder]
+  \item Posit Software, PBC (\href{https://ror.org/03wc8by49}{ROR}) [copyright holder, funder]
 }
 
 }

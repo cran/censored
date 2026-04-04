@@ -4,7 +4,8 @@ keep_cols <- function(x, output, keep_penalty = FALSE) {
   } else {
     cols_to_keep <- c(".row", ".eval_time")
   }
-  output_cols <- switch(output,
+  output_cols <- switch(
+    output,
     surv = ".pred_survival",
     conf = c(".pred_lower", ".pred_upper"),
     survconf = c(".pred_survival", ".pred_lower", ".pred_upper"),
@@ -16,8 +17,12 @@ keep_cols <- function(x, output, keep_penalty = FALSE) {
 
 stack_survfit <- function(x, n, penalty = NULL) {
   # glmnet does not calculate confidence intervals
-  if (is.null(x$lower)) x$lower <- NA_real_
-  if (is.null(x$upper)) x$upper <- NA_real_
+  if (is.null(x$lower)) {
+    x$lower <- NA_real_
+  }
+  if (is.null(x$upper)) {
+    x$upper <- NA_real_
+  }
 
   has_strata <- any(names(x) == "strata")
 
@@ -81,9 +86,9 @@ predict_survival_na <- function(eval_time, interval = "none", penalty = NULL) {
       )
     )
   }
-  
+
   if (interval == "confidence") {
-    ret <- ret %>%
+    ret <- ret |>
       dplyr::mutate(.pred_lower = NA_real_, .pred_upper = NA_real_)
   }
 
@@ -116,7 +121,12 @@ available_survfit_summary_elements <- function(object) {
   )
 }
 
-survfit_summary_patch_missings <- function(object, index_missing, eval_time, n_obs) {
+survfit_summary_patch_missings <- function(
+  object,
+  index_missing,
+  eval_time,
+  n_obs
+) {
   if (is.null(index_missing)) {
     return(object)
   }
@@ -155,15 +165,20 @@ survfit_summary_to_tibble <- function(object, eval_time, n_obs) {
   ret
 }
 
-survfit_summary_to_patched_tibble <- function(object, index_missing, eval_time, n_obs) {
-  object %>%
-    summary(times = eval_time, extend = TRUE) %>%
-    survfit_summary_typestable() %>%
+survfit_summary_to_patched_tibble <- function(
+  object,
+  index_missing,
+  eval_time,
+  n_obs
+) {
+  object |>
+    summary(times = eval_time, extend = TRUE) |>
+    survfit_summary_typestable() |>
     survfit_summary_patch_missings(
       index_missing = index_missing,
       eval_time = eval_time,
       n_obs = n_obs
-    ) %>%
+    ) |>
     survfit_summary_to_tibble(eval_time = eval_time, n_obs = n_obs)
 }
 
@@ -173,8 +188,8 @@ combine_list_of_survfit_summary <- function(object, eval_time) {
 
   ret <- list()
   for (i in elements) {
-    ret[[i]] <- purrr::map(object, purrr::pluck, i) %>%
-      unlist() %>%
+    ret[[i]] <- purrr::map(object, purrr::pluck, i) |>
+      unlist() |>
       matrix(nrow = n_time)
   }
 
@@ -182,8 +197,8 @@ combine_list_of_survfit_summary <- function(object, eval_time) {
 }
 
 survfit_summary_patch <- function(object, index_missing, eval_time, n_obs) {
-  object %>%
-    survfit_summary_typestable() %>%
+  object |>
+    survfit_summary_typestable() |>
     survfit_summary_patch_missings(
       index_missing = index_missing,
       eval_time = eval_time,

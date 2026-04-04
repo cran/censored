@@ -5,14 +5,16 @@
 #' @keywords internal
 #' @export
 #' @examplesIf rlang::is_installed("ipred")
-#' bagged_tree <- bag_tree() %>%
-#'   set_engine("rpart") %>%
-#'   set_mode("censored regression") %>%
+#' bagged_tree <- bag_tree() |>
+#'   set_engine("rpart") |>
+#'   set_mode("censored regression") |>
 #'   fit(Surv(time, status) ~ age + ph.ecog, data = lung)
 #' survival_time_survbagg(bagged_tree, lung[1:3, ])
 survival_time_survbagg <- function(object, new_data) {
   if (inherits(object, "survbagg")) {
-    cli::cli_abort("{.arg object} needs to be a parsnip {.cls model_fit} object, not a {.cls survbagg} object.")
+    cli::cli_abort(
+      "{.arg object} needs to be a parsnip {.cls model_fit} object, not a {.cls survbagg} object."
+    )
   }
 
   missings_in_new_data <- get_missings_survbagg(object$fit, new_data)
@@ -29,7 +31,7 @@ survival_time_survbagg <- function(object, new_data) {
 
   y <- predict(object$fit, newdata = new_data)
 
-  res <- purrr::map_dbl(y, ~ quantile(.x, probs = .5)$quantile)
+  res <- purrr::map_dbl(y, \(.x) quantile(.x, probs = .5)$quantile)
 
   if (!is.null(missings_in_new_data)) {
     index_with_na <- rep(NA, n_total)
@@ -62,14 +64,21 @@ get_missings_survbagg <- function(object, new_data) {
 #' @keywords internal
 #' @export
 #' @examplesIf rlang::is_installed("ipred")
-#' bagged_tree <- bag_tree() %>%
-#'   set_engine("rpart") %>%
-#'   set_mode("censored regression") %>%
+#' bagged_tree <- bag_tree() |>
+#'   set_engine("rpart") |>
+#'   set_mode("censored regression") |>
 #'   fit(Surv(time, status) ~ age + ph.ecog, data = lung)
 #' survival_prob_survbagg(bagged_tree, lung[1:3, ], eval_time = 100)
-survival_prob_survbagg <- function(object, new_data, eval_time, time = deprecated()) {
+survival_prob_survbagg <- function(
+  object,
+  new_data,
+  eval_time,
+  time = deprecated()
+) {
   if (inherits(object, "survbagg")) {
-    cli::cli_abort("{.arg object} needs to be a parsnip {.cls model_fit} object, not a {.cls survbagg} object.")
+    cli::cli_abort(
+      "{.arg object} needs to be a parsnip {.cls model_fit} object, not a {.cls survbagg} object."
+    )
   }
 
   if (lifecycle::is_present(time)) {
@@ -103,7 +112,12 @@ survival_prob_survbagg <- function(object, new_data, eval_time, time = deprecate
 
   y <- predict(object$fit, newdata = new_data)
 
-  survfit_summary_list <- purrr::map(y, summary, times = eval_time, extend = TRUE)
+  survfit_summary_list <- purrr::map(
+    y,
+    summary,
+    times = eval_time,
+    extend = TRUE
+  )
   survfit_summary_combined <- combine_list_of_survfit_summary(
     survfit_summary_list,
     eval_time = eval_time
@@ -114,10 +128,10 @@ survival_prob_survbagg <- function(object, new_data, eval_time, time = deprecate
     index_missing = missings_in_new_data,
     eval_time = eval_time,
     n_obs = n_obs
-  ) %>%
-    survfit_summary_to_tibble(eval_time = eval_time, n_obs = n_obs) %>%
-    keep_cols(output) %>%
-    tidyr::nest(.pred = c(-.row)) %>%
+  ) |>
+    survfit_summary_to_tibble(eval_time = eval_time, n_obs = n_obs) |>
+    keep_cols(output) |>
+    tidyr::nest(.pred = c(-.row)) |>
     dplyr::select(-.row)
 
   res

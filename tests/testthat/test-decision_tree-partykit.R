@@ -8,13 +8,12 @@ test_that("model object", {
   exp_f_fit <- partykit::ctree(Surv(time, status) ~ age + ph.ecog, data = lung)
 
   # formula method
-  cox_spec <- decision_tree() %>%
-    set_mode("censored regression") %>%
+  cox_spec <- decision_tree() |>
+    set_mode("censored regression") |>
     set_engine("partykit")
   set.seed(1234)
-  expect_error(
-    f_fit <- fit(cox_spec, Surv(time, status) ~ age + ph.ecog, data = lung),
-    NA
+  expect_no_error(
+    f_fit <- fit(cox_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
   )
 
   # Removing `call` element from comparison
@@ -38,8 +37,8 @@ test_that("time predictions", {
   set.seed(1234)
   exp_f_fit <- partykit::ctree(Surv(time, status) ~ age + ph.ecog, data = lung)
 
-  cox_spec <- decision_tree() %>%
-    set_mode("censored regression") %>%
+  cox_spec <- decision_tree() |>
+    set_mode("censored regression") |>
     set_engine("partykit")
   set.seed(1234)
   f_fit <- fit(cox_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
@@ -67,8 +66,8 @@ test_that("survival predictions", {
   set.seed(1234)
   exp_f_fit <- partykit::ctree(Surv(time, status) ~ age + ph.ecog, data = lung)
 
-  cox_spec <- decision_tree() %>%
-    set_mode("censored regression") %>%
+  cox_spec <- decision_tree() |>
+    set_mode("censored regression") |>
     set_engine("partykit")
   set.seed(1234)
   f_fit <- fit(cox_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
@@ -90,7 +89,7 @@ test_that("survival predictions", {
     all(
       purrr::map_lgl(
         f_pred$.pred,
-        ~identical(names(.x), cf_names)
+        \(.x) identical(names(.x), cf_names)
       )
     )
   )
@@ -116,8 +115,8 @@ test_that("survival predictions - error snapshot", {
   skip_if_not_installed("partykit")
   skip_if_not_installed("coin")
 
-  cox_spec <- decision_tree() %>%
-    set_mode("censored regression") %>%
+  cox_spec <- decision_tree() |>
+    set_mode("censored regression") |>
     set_engine("partykit")
   set.seed(1234)
   f_fit <- fit(cox_spec, Surv(time, status) ~ age + ph.ecog, data = lung)
@@ -132,15 +131,20 @@ test_that("can predict for out-of-domain timepoints", {
   skip_if_not_installed("coin")
 
   eval_time_obs_max_and_ood <- c(1022, 2000)
-  obs_without_NA <- lung[2,]
+  obs_without_NA <- lung[2, ]
 
-  mod <- decision_tree() %>%
-    set_mode("censored regression") %>%
-    set_engine("partykit") %>%
+  mod <- decision_tree() |>
+    set_mode("censored regression") |>
+    set_engine("partykit") |>
     fit(Surv(time, status) ~ ., data = lung)
 
   expect_no_error(
-    preds <- predict(mod, obs_without_NA, type = "survival", eval_time = eval_time_obs_max_and_ood)
+    preds <- predict(
+      mod,
+      obs_without_NA,
+      type = "survival",
+      eval_time = eval_time_obs_max_and_ood
+    )
   )
 })
 
@@ -149,13 +153,13 @@ test_that("can predict for out-of-domain timepoints", {
 test_that("`fix_xy()` works", {
   skip_if_not_installed("partykit")
   skip_if_not_installed("coin")
-  
+
   lung_x <- as.matrix(lung[, c("age", "ph.ecog")])
   lung_y <- Surv(lung$time, lung$status)
   lung_pred <- lung[1:5, ]
 
-  spec <- decision_tree() %>%
-    set_mode("censored regression") %>%
+  spec <- decision_tree() |>
+    set_mode("censored regression") |>
     set_engine("partykit")
   set.seed(1)
   f_fit <- fit(spec, Surv(time, status) ~ age + ph.ecog, data = lung)
