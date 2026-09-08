@@ -1,7 +1,7 @@
-78d0c94c31864a01352818ef5d37b3a7 *DESCRIPTION
+3a174e945395e1863a57cd1581d801aa *DESCRIPTION
 0ce9e971ddaeb801c7e64e188db2b87f *LICENSE
 d9fa7485813a81b5a3cb637d4b21e152 *NAMESPACE
-c07d71247f7d73d19f55561cc8b541b0 *NEWS.md
+4c35808e35dd44a3fc769df598bd0468 *NEWS.md
 71ccbb0f7a180ec549d9f0a56f71484c *R/aaa_survival_prob.R
 65c8609ced0aee5490d3639ed3adaf63 *R/bag_tree-data.R
 394b25f7bfd7de334157f5ccbedee810 *R/bag_tree-rpart.R
@@ -57,7 +57,7 @@ ff77fbe58c2cd2316ee6cd46389b63b1 *tests/testthat.R
 13b049815cc82cd995adeefd5226fc18 *tests/testthat/_snaps/boost_tree-mboost.md
 13b049815cc82cd995adeefd5226fc18 *tests/testthat/_snaps/decision_tree-partykit.md
 13b049815cc82cd995adeefd5226fc18 *tests/testthat/_snaps/decision_tree-rpart.md
-c5346f3262862a2c03c7e69797fcd9ec *tests/testthat/_snaps/proportional_hazards-glmnet.md
+df25f904f4bb9051e64a124444a1e4d5 *tests/testthat/_snaps/proportional_hazards-glmnet.md
 81c6700580a03ffb71563c692c88b19b *tests/testthat/_snaps/proportional_hazards-survival.md
 4121a10cf6f216f0c60870295fb10079 *tests/testthat/_snaps/proportional_hazards.md
 207ba3bd2e945b4a9bb8006b5c129d3a *tests/testthat/_snaps/rand_forest-aorsf.md
@@ -70,13 +70,13 @@ b55a06638b3f2a21b32bfd2dd8558379 *tests/testthat/data/rms_surv.rds
 97dd604d0819f12654220dace983817d *tests/testthat/helper-case-weights.R
 dea24998e5cb12deb20eb4d48bc3cc73 *tests/testthat/helper-censored.R
 d31a17260f447ad341db7b091ca96fee *tests/testthat/test-aaa_survival_prob.R
-930ff75c151525f7b50deb8f1d78d8f0 *tests/testthat/test-bag_tree-rpart.R
+915169a960b4f8bc478c8ad50e5595d6 *tests/testthat/test-bag_tree-rpart.R
 570af596334e4988afa6177779656ee0 *tests/testthat/test-boost_tree-mboost.R
 95d62f306ce9d1299c4e842c5f23799e *tests/testthat/test-decision_tree-partykit.R
 dc6d4f0b4d98760405483e0901f5b2d7 *tests/testthat/test-decision_tree-rpart.R
 9ad861cde104661007615290adddcba6 *tests/testthat/test-partykit.R
-b54c6f0c3509e851f2ac1567c28e7836 *tests/testthat/test-proportional_hazards-glmnet.R
-e18e4bec56bd9d7ea47bef1297e65a35 *tests/testthat/test-proportional_hazards-survival.R
+ce8a7a3d273f96c67d69b41031088b5f *tests/testthat/test-proportional_hazards-glmnet.R
+6754ed0bf7e4eb9d142d5f74570e34de *tests/testthat/test-proportional_hazards-survival.R
 48069f3b86364fbc79a3c85b39457d2d *tests/testthat/test-proportional_hazards.R
 57ef14ebff0d3a4d47a985f62d94d503 *tests/testthat/test-rand_forest-aorsf.R
 2a9be221728fe4219a836520f6450a72 *tests/testthat/test-rand_forest-partykit.R

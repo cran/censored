@@ -1,6 +1,6 @@
 Package: censored
 Title: 'parsnip' Engines for Survival Models
-Version: 0.3.4
+Version: 0.3.5
 Authors@R: c(
     person("Emil", "Hvitfeldt", , "emil.hvitfeldt@posit.co", role = "aut",
            comment = c(ORCID = "0000-0002-0679-1945")),
@@ -33,11 +33,11 @@ Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3
 NeedsCompilation: no
-Packaged: 2026-04-03 15:36:55 UTC; hannah
+Packaged: 2026-09-07 18:20:43 UTC; hannah
 Author: Emil Hvitfeldt [aut] (ORCID: <https://orcid.org/0000-0002-0679-1945>),
   Hannah Frick [aut, cre] (ORCID:
     <https://orcid.org/0000-0002-6049-5258>),
   Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)
 Maintainer: Hannah Frick <hannah@posit.co>
 Repository: CRAN
-Date/Publication: 2026-04-04 05:11:41 UTC
+Date/Publication: 2026-09-08 05:20:33 UTC
