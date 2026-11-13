@@ -59,11 +59,11 @@ make_decision_tree_rpart <- function() {
     type = "time",
     value = list(
       pre = NULL,
-      post = unname,
-      func = c(fun = "predict"),
+      post = NULL,
+      func = c(pkg = "censored", fun = "survival_time_pecRpart"),
       args = list(
-        object = quote(object$fit$rpart),
-        newdata = quote(new_data)
+        object = rlang::expr(object),
+        new_data = rlang::expr(new_data)
       )
     )
   )
@@ -119,6 +119,30 @@ make_decision_tree_partykit <- function() {
     parsnip = "min_n",
     original = "minsplit",
     func = list(pkg = "dials", fun = "min_n"),
+    has_submodel = FALSE
+  )
+  parsnip::set_model_arg(
+    model = "decision_tree",
+    eng = "partykit",
+    parsnip = "mincriterion",
+    original = "mincriterion",
+    func = list(pkg = "dials", fun = "conditional_min_criterion"),
+    has_submodel = FALSE
+  )
+  parsnip::set_model_arg(
+    model = "decision_tree",
+    eng = "partykit",
+    parsnip = "teststat",
+    original = "teststat",
+    func = list(pkg = "dials", fun = "conditional_test_statistic"),
+    has_submodel = FALSE
+  )
+  parsnip::set_model_arg(
+    model = "decision_tree",
+    eng = "partykit",
+    parsnip = "testtype",
+    original = "testtype",
+    func = list(pkg = "dials", fun = "conditional_test_type"),
     has_submodel = FALSE
   )
 

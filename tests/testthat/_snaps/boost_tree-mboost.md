@@ -1,3 +1,11 @@
+# `control` and `tree_controls` cannot be set via engine args
+
+    Code
+      f_fit <- fit(spec, Surv(time, status) ~ age + ph.ecog, data = lung[-14, ])
+    Condition
+      Warning:
+      The following arguments cannot be manually modified and were removed: `control` and `tree_controls`.
+
 # survival predictions - error snapshot
 
     Code
@@ -5,4 +13,121 @@
     Condition
       Error in `predict()`:
       ! When using `type` values of "survival" or "hazard" a numeric vector `eval_time` should also be given.
+
+# survival_time_mboost() errors informatively on bad input
+
+    Code
+      survival_time_mboost(raw_fit)
+    Condition
+      Error in `survival_time_mboost()`:
+      ! `object` must be a <model_fit> object, not a <blackboost> object.
+
+---
+
+    Code
+      survival_time_mboost(wrong_engine)
+    Condition
+      Error in `survival_time_mboost()`:
+      ! `object$fit` must be a <mboost> object, not a <coxph> object.
+
+# survival_prob_mboost() errors informatively on bad input
+
+    Code
+      survival_prob_mboost(raw_fit, new_data = lung[1:3, ], eval_time = 100)
+    Condition
+      Error in `survival_prob_mboost()`:
+      ! `object` must be a <model_fit> object, not a <blackboost> object.
+
+---
+
+    Code
+      survival_prob_mboost(wrong_engine, new_data = lung[1:3, ], eval_time = 100)
+    Condition
+      Error in `survival_prob_mboost()`:
+      ! `object$fit` must be a <mboost> object, not a <coxph> object.
+
+# survival_prob_mboost() errors on defunct `time` argument
+
+    Code
+      survival_prob_mboost(mod, new_data = new_data, time = 100)
+    Condition
+      Error:
+      ! The `time` argument of `survival_prob_mboost()` was deprecated in censored 0.2.0 and is now defunct.
+      i Please use the `eval_time` argument instead.
+
+# multi_predict() warns when `opts` is ignored
+
+    Code
+      pred_opts <- multi_predict(f_fit, new_data = new_data_3, type = "time", trees = 50,
+        opts = list(x = 1))
+    Condition
+      Warning:
+      `opts` is only used with `type = 'raw'` and was ignored.
+
+# multi_predict() errors informatively on bad input
+
+    Code
+      multi_predict(f_fit, new_data = new_data_3, type = "survival", trees = c(25,
+        100))
+    Condition
+      Error in `multi_predict()`:
+      ! When using `type` values of "survival" or "hazard" a numeric vector `eval_time` should also be given.
+
+---
+
+    Code
+      multi_predict(f_fit, new_data = new_data_3, type = "time", eval_time = 100,
+        trees = c(25, 100))
+    Condition
+      Error in `multi_predict()`:
+      ! `eval_time` should only be passed to `predict()` when `type` is one of "survival" or "hazard".
+
+---
+
+    Code
+      multi_predict(f_fit, new_data = new_data_3, type = "time", trees = c(50, 10000))
+    Condition
+      Error in `multi_predict()`:
+      ! `trees` values must not exceed the number of boosting iterations in the fitted model (100).
+      i mboost would otherwise refit additional iterations.
+
+---
+
+    Code
+      multi_predict(f_fit, new_data = new_data_3, type = "time", trees = c(0, 50))
+    Condition
+      Error in `multi_predict()`:
+      ! `trees` must be a vector of positive integers.
+
+---
+
+    Code
+      multi_predict(f_fit, new_data = new_data_3, type = "time", trees = c(1.5, 50))
+    Condition
+      Error in `multi_predict()`:
+      ! `trees` must be a vector of positive integers.
+
+---
+
+    Code
+      multi_predict(f_fit, new_data = new_data_3, type = "time", trees = "a")
+    Condition
+      Error in `multi_predict()`:
+      ! `trees` must be a numeric vector, not the string "a".
+
+---
+
+    Code
+      multi_predict(f_fit, new_data = new_data_3, type = "time", trees = integer(0))
+    Condition
+      Error in `multi_predict()`:
+      ! `trees` can't be empty.
+
+---
+
+    Code
+      multi_predict(f_fit, new_data = new_data_3, type = "time", trees = c(50, NA))
+    Condition
+      Error in `multi_predict()`:
+      ! `trees` can't contain missing or infinite values.
 

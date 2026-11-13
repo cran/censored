@@ -20,22 +20,23 @@ survival_prob_orsf <- function(
   eval_time,
   time = deprecated()
 ) {
-  if (inherits(object, "orsf_fit")) {
-    cli::cli_abort(
-      "{.arg object} needs to be a parsnip {.cls model_fit} object, not a {.cls orsf_fit} object."
-    )
-  }
+  check_inherits(object, "model_fit")
+  engine_fit <- hardhat::extract_fit_engine(object)
+  check_inherits(engine_fit, "ObliqueForestSurvival", arg = "object$fit")
+  check_data_frame(new_data)
+
   if (lifecycle::is_present(time)) {
-    lifecycle::deprecate_warn(
+    lifecycle::deprecate_stop(
       "0.2.0",
       "survival_prob_orsf(time)",
       "survival_prob_orsf(eval_time)"
     )
-    eval_time <- time
   }
 
+  check_eval_time(eval_time, allow_empty = TRUE, allow_infinite = TRUE)
+
   pred <- predict(
-    object$fit,
+    engine_fit,
     new_data = new_data,
     pred_horizon = eval_time,
     pred_type = "surv",

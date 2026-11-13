@@ -43,7 +43,7 @@ make_boost_tree_mboost <- function() {
     parsnip = "trees",
     original = "mstop",
     func = list(pkg = "dials", fun = "trees"),
-    has_submodel = FALSE
+    has_submodel = TRUE
   )
 
   parsnip::set_model_arg(
@@ -67,6 +67,15 @@ make_boost_tree_mboost <- function() {
   parsnip::set_model_arg(
     model = "boost_tree",
     eng = "mboost",
+    parsnip = "learn_rate",
+    original = "nu",
+    func = list(pkg = "dials", fun = "learn_rate"),
+    has_submodel = FALSE
+  )
+
+  parsnip::set_model_arg(
+    model = "boost_tree",
+    eng = "mboost",
     parsnip = "loss_reduction",
     original = "mincriterion",
     func = list(pkg = "dials", fun = "loss_reduction"),
@@ -79,7 +88,9 @@ make_boost_tree_mboost <- function() {
     mode = "censored regression",
     value = list(
       interface = "formula",
-      protect = c("formula", "data", "weights"),
+      # case weights are not enabled because mboost cannot predict from a
+      # weighted fit (#363)
+      protect = c("formula", "data"),
       func = c(pkg = "censored", fun = "blackboost_train"),
       defaults = list(family = expr(mboost::CoxPH()))
     )

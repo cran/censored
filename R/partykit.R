@@ -27,20 +27,20 @@ survival_prob_partykit <- function(
   time = deprecated(),
   output = "surv"
 ) {
-  if (inherits(object, "party")) {
-    cli::cli_abort(
-      "{.arg object} needs to be a parsnip {.cls model_fit} object, not a {.cls party} object."
-    )
-  }
+  check_inherits(object, "model_fit")
+  engine_fit <- hardhat::extract_fit_engine(object)
+  check_inherits(engine_fit, c("party", "parties"), arg = "object$fit")
+  check_data_frame(new_data)
 
   if (lifecycle::is_present(time)) {
-    lifecycle::deprecate_warn(
+    lifecycle::deprecate_stop(
       "0.2.0",
       "survival_prob_partykit(time)",
       "survival_prob_partykit(eval_time)"
     )
-    eval_time <- time
   }
+
+  check_eval_time(eval_time, allow_infinite = TRUE, allow_negative = TRUE)
 
   # don't use the confidence intervals: the KM does not know about
   # how the sample for it got constructed (by the tree) and thus standard errors
@@ -51,7 +51,7 @@ survival_prob_partykit <- function(
   # partykit handles missing values
   missings_in_new_data <- NULL
 
-  y <- predict(object$fit, newdata = new_data, type = "prob")
+  y <- predict(engine_fit, newdata = new_data, type = "prob")
 
   survfit_summary_list <- purrr::map(
     y,

@@ -51,26 +51,21 @@ blackboost_train <-
     ...
   ) {
     other_args <- list(...)
-    protect_ct <- c(
-      "teststat",
-      "testtype",
-      "mincriterion",
-      "minsplit",
-      "minbucket",
-      "maxdepth",
-      "saveinfo"
-    )
-    protect_cb <- character()
-    protect_fit <- c("formula", "data", "family", "weight")
+
+    # these are built from the main and engine args below and would override them
+    protect <- c("control", "tree_controls")
+    protected_args <- intersect(names(other_args), protect)
+    if (length(protected_args) > 0) {
+      cli::cli_warn(
+        "The following argument{?s} cannot be manually modified and
+        {?was/were} removed: {.arg {protected_args}}."
+      )
+      other_args[protected_args] <- NULL
+    }
 
     ct_names <- names(formals(getFromNamespace("ctree_control", "partykit")))
     cb_names <- names(formals(getFromNamespace("boost_control", "mboost")))
     fit_names <- names(formals(getFromNamespace("blackboost", "mboost")))
-
-    other_args <- other_args[
-      !(other_args %in%
-        c(protect_ct, protect_cb, protect_fit))
-    ]
 
     ct_args <- other_args[names(other_args) %in% ct_names]
     cb_args <- other_args[names(other_args) %in% cb_names]
@@ -142,22 +137,20 @@ survival_prob_mboost <- function(
   eval_time,
   time = deprecated()
 ) {
-  if (inherits(object, "mboost")) {
-    cli::cli_abort(
-      "{.arg object} needs to be a parsnip {.cls model_fit} object, not a {.cls mboost} object."
-    )
-  }
+  check_inherits(object, "model_fit")
+  engine_fit <- hardhat::extract_fit_engine(object)
+  check_inherits(engine_fit, "mboost", arg = "object$fit")
+  check_data_frame(new_data)
 
   if (lifecycle::is_present(time)) {
-    lifecycle::deprecate_warn(
+    lifecycle::deprecate_stop(
       "0.2.0",
       "survival_prob_mboost(time)",
       "survival_prob_mboost(eval_time)"
     )
-    eval_time <- time
   }
 
-  survival_curve <- mboost::survFit(object$fit, newdata = new_data)
+  survival_curve <- mboost::survFit(engine_fit, newdata = new_data)
 
   survival_prob <- survival_curve_to_prob(
     eval_time,
@@ -209,13 +202,12 @@ survival_curve_to_prob <- function(eval_time, event_times, survival_prob) {
 #'   fit(Surv(time, status) ~ age + ph.ecog, data = lung[-14, ])
 #' survival_time_mboost(boosted_tree, new_data = lung[1:3, ])
 survival_time_mboost <- function(object, new_data) {
-  if (inherits(object, "mboost")) {
-    cli::cli_abort(
-      "{.arg object} needs to be a parsnip {.cls model_fit} object, not a {.cls mboost} object."
-    )
-  }
+  check_inherits(object, "model_fit")
+  engine_fit <- hardhat::extract_fit_engine(object)
+  check_inherits(engine_fit, "mboost", arg = "object$fit")
+  check_data_frame(new_data)
 
-  y <- mboost::survFit(object$fit, new_data)
+  y <- mboost::survFit(engine_fit, new_data)
 
   stacked_survfit <- stack_survfit(y, n = nrow(new_data))
 
@@ -235,4 +227,178 @@ survival_time_mboost <- function(object, new_data) {
     dplyr::select(.pred_time)
 
   res
+}
+
+
+# multi_predict -----------------------------------------------------------
+
+#' @export
+multi_predict._blackboost <- function(
+  object,
+  new_data,
+  type = NULL,
+  opts = list(),
+  trees = NULL,
+  ...
+) {
+  dots <- list(...)
+
+  check_installs(object$spec)
+  load_libs(object$spec, quiet = TRUE)
+
+  type <- check_pred_type(object, type)
+  check_spec_pred_type(object, type)
+  if (type != "raw" && length(opts) > 0) {
+    rlang::warn("`opts` is only used with `type = 'raw'` and was ignored.")
+  }
+  check_pred_type_dots(object, type, ...)
+
+  engine_fit <- hardhat::extract_fit_engine(object)
+  mstop_original <- mboost::mstop(engine_fit)
+  on.exit(engine_fit[mstop_original], add = TRUE)
+
+  if (is.null(trees)) {
+    trees <- mstop_original
+  }
+  check_trees(trees, mstop_original)
+  trees <- sort(unique(as.integer(trees)))
+
+  pred <- switch(
+    type,
+    "time" = multi_predict_mboost_time(object, new_data, trees),
+    "survival" = multi_predict_mboost_survival(
+      object,
+      new_data = new_data,
+      trees = trees,
+      ...
+    ),
+    "linear_pred" = multi_predict_mboost_linear_pred(
+      object,
+      new_data = new_data,
+      trees = trees,
+      opts = dots
+    )
+  )
+
+  pred
+}
+
+check_trees <- function(
+  x,
+  mstop_original,
+  ...,
+  arg = rlang::caller_arg(x),
+  call = rlang::caller_env()
+) {
+  if (missing(x) || !is.numeric(x)) {
+    rlang::stop_input_type(
+      x,
+      "a numeric vector",
+      ...,
+      arg = arg,
+      call = call
+    )
+  }
+  if (length(x) == 0) {
+    cli::cli_abort("{.arg {arg}} can't be empty.", call = call)
+  }
+  if (anyNA(x) || any(!is.finite(x))) {
+    cli::cli_abort(
+      "{.arg {arg}} can't contain missing or infinite values.",
+      call = call
+    )
+  }
+  if (any(x != floor(x)) || any(x < 1)) {
+    cli::cli_abort(
+      "{.arg {arg}} must be a vector of positive integers.",
+      call = call
+    )
+  }
+  if (any(x > mstop_original)) {
+    cli::cli_abort(
+      c(
+        "{.arg {arg}} values must not exceed the number of boosting iterations
+        in the fitted model ({mstop_original}).",
+        i = "mboost would otherwise refit additional iterations."
+      ),
+      call = call
+    )
+  }
+
+  invisible(NULL)
+}
+
+multi_predict_mboost_time <- function(object, new_data, trees) {
+  new_data <- parsnip::prepare_data(object, new_data)
+  engine_fit <- hardhat::extract_fit_engine(object)
+  n_obs <- nrow(new_data)
+
+  per_t <- purrr::map(trees, function(t) {
+    engine_fit[t]
+    pred_t <- survival_time_mboost(object, new_data)
+    tibble::tibble(
+      .row = seq_len(n_obs),
+      trees = t,
+      .pred_time = pred_t$.pred_time
+    )
+  })
+
+  vctrs::vec_rbind(!!!per_t) |>
+    dplyr::arrange(.row, trees) |>
+    tidyr::nest(.pred = c(-.row)) |>
+    dplyr::select(-.row)
+}
+
+multi_predict_mboost_survival <- function(object, new_data, trees, ...) {
+  dots <- list(...)
+  dots$eval_time <- .filter_eval_time(dots$eval_time)
+
+  new_data <- parsnip::prepare_data(object, new_data)
+  engine_fit <- hardhat::extract_fit_engine(object)
+  eval_time <- dots$eval_time
+
+  per_t <- purrr::map(trees, function(t) {
+    engine_fit[t]
+    pred_t <- survival_prob_mboost(object, new_data, eval_time = eval_time)
+    pred_t |>
+      dplyr::mutate(.row = dplyr::row_number()) |>
+      tidyr::unnest(cols = .pred) |>
+      dplyr::mutate(trees = t)
+  })
+
+  vctrs::vec_rbind(!!!per_t) |>
+    dplyr::select(.row, trees, .eval_time, .pred_survival) |>
+    dplyr::arrange(.row, trees) |>
+    tidyr::nest(.pred = c(-.row)) |>
+    dplyr::select(-.row)
+}
+
+multi_predict_mboost_linear_pred <- function(object, new_data, trees, opts) {
+  if ("increasing" %in% names(opts)) {
+    increasing <- opts$increasing
+  } else {
+    increasing <- TRUE
+  }
+
+  new_data <- parsnip::prepare_data(object, new_data)
+  engine_fit <- hardhat::extract_fit_engine(object)
+  n_obs <- nrow(new_data)
+
+  per_t <- purrr::map(trees, function(t) {
+    engine_fit[t]
+    pred_t <- as.numeric(predict(engine_fit, newdata = new_data))
+    if (increasing) {
+      pred_t <- -pred_t
+    }
+    tibble::tibble(
+      .row = seq_len(n_obs),
+      trees = t,
+      .pred_linear_pred = pred_t
+    )
+  })
+
+  vctrs::vec_rbind(!!!per_t) |>
+    dplyr::arrange(.row, trees) |>
+    tidyr::nest(.pred = c(-.row)) |>
+    dplyr::select(-.row)
 }
